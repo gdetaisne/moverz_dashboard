@@ -127,32 +127,35 @@ moverz_dashboard/
 ## ⚙️ Installation & Configuration
 
 ### Prérequis
-- Node.js 24.x
-- Compte Google Analytics 4
+- Node.js 20.x
 - Compte Google Cloud (BigQuery)
+- Service Account avec permissions
 - Accès Google Search Console (11 domaines)
-- OpenAI API Key (Phase 4)
+- CapRover app `dd-dashboard` (optionnel)
 
-### Setup rapide
+### Setup Local
 
 ```bash
 # 1. Cloner le repo
 git clone https://github.com/gdetaisne/moverz_dashboard.git
 cd moverz_dashboard
 
-# 2. Copier .env.example
-cp .env.example .env
-
-# 3. Configurer les variables
-# Éditer .env avec vos clés
-
-# 4. Installer dépendances
+# 2. Installer dépendances
 npm install
 
-# 5. Lancer Phase 1
-cd scripts/setup
-./phase1-ga4.sh
+# 3. Configurer variables d'environnement
+# Copier/éditer .env avec vos credentials
+
+# 4. Setup BigQuery (automatisé)
+npm run setup:bigquery
+
+# 5. Lancer ETL
+npm run etl:gsc
 ```
+
+### Déploiement CapRover
+
+Voir **[CAPROVER-DEPLOY.md](CAPROVER-DEPLOY.md)** pour le guide complet.
 
 ---
 
