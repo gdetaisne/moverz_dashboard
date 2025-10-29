@@ -83,7 +83,7 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
           <div className="text-center py-12 text-slate-600">
             <AlertTriangle className="h-12 w-12 text-slate-400 mx-auto mb-3" />
             <p>Aucune donnée historique disponible</p>
-            <p className="text-sm mt-1">Lancez un scan pour commencer à suivre l'évolution</p>
+            <p className="text-sm mt-1">Lancez un scan pour commencer à suivre l&apos;évolution</p>
           </div>
         ) : (
           <>
