@@ -140,8 +140,8 @@ export default function HomePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-4xl font-bold text-slate-900">Vue Globale</h1>
-          <p className="mt-2 text-lg text-slate-600">Performance SEO des 11 sites Moverz</p>
+          <h1 className="text-4xl font-bold text-slate-900">Trafic SEO</h1>
+          <p className="mt-2 text-lg text-slate-600">Performance Google Search Console des 11 sites Moverz</p>
         </div>
         
         <div className="flex items-center gap-3">

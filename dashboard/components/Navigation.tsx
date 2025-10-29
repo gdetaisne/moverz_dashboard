@@ -2,15 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Home, BarChart3, Settings } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Navigation() {
   const pathname = usePathname()
   
   const links = [
-    { href: '/', label: 'Global', icon: Home },
-    { href: '/sites', label: 'Sites', icon: BarChart3 },
+    { href: '/', label: 'Trafic', icon: TrendingUp },
+    { href: '/404', label: '404', icon: AlertTriangle },
     { href: '/settings', label: 'Paramètres', icon: Settings },
   ]
   
