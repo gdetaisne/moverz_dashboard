@@ -5,7 +5,8 @@
 import { google } from 'googleapis'
 import { insertRows } from '../shared/bigquery-client.js'
 import { withErrorHandling, retry, log } from '../shared/error-handler.js'
-import { SITES, type GSCGlobalMetrics, type GSCPageMetrics, type GSCQueryMetrics } from '../shared/types.js'
+import { getSitesFromEnv, getCityFromDomain, type GSCGlobalMetrics, type GSCPageMetrics, type GSCQueryMetrics } from '../shared/types.js'
+import { GOOGLE_APPLICATION_CREDENTIALS } from '../shared/config.js'
 import type { ETLJobResult } from '../shared/types.js'
 
 const searchconsole = google.searchconsole('v1')
@@ -14,10 +15,8 @@ const searchconsole = google.searchconsole('v1')
 // CONFIGURATION
 // ========================================
 
-const SERVICE_ACCOUNT_KEY = process.env.GOOGLE_SERVICE_ACCOUNT_KEY
-
-if (!SERVICE_ACCOUNT_KEY) {
-  throw new Error('GOOGLE_SERVICE_ACCOUNT_KEY not found in env')
+if (!GOOGLE_APPLICATION_CREDENTIALS) {
+  throw new Error('GOOGLE_APPLICATION_CREDENTIALS not found in env')
 }
 
 // ========================================
@@ -26,7 +25,7 @@ if (!SERVICE_ACCOUNT_KEY) {
 
 async function getAuthClient() {
   const auth = new google.auth.GoogleAuth({
-    keyFile: SERVICE_ACCOUNT_KEY,
+    keyFile: GOOGLE_APPLICATION_CREDENTIALS,
     scopes: ['https://www.googleapis.com/auth/webmasters.readonly'],
   })
 
@@ -51,11 +50,8 @@ async function fetchGSCData(
 
   log('info', `Fetching GSC data for ${domain}`, { startDate, endDate })
 
-  // Trouver le site correspondant
-  const site = SITES.find(s => s.domain === domain)
-  if (!site) {
-    throw new Error(`Site ${domain} not found in SITES config`)
-  }
+  // Déterminer la ville depuis le domaine
+  const city = getCityFromDomain(domain)
 
   // 1. MÉTRIQUES GLOBALES
   const globalResponse = await searchconsole.searchanalytics.query({
@@ -70,7 +66,7 @@ async function fetchGSCData(
   })
 
   const globalMetrics: GSCGlobalMetrics[] = (globalResponse.data.rows || []).map((row: any) => ({
-    site: site.city,
+    site: city,
     date: row.keys[0],
     impressions: row.impressions || 0,
     clicks: row.clicks || 0,
@@ -91,7 +87,7 @@ async function fetchGSCData(
   })
 
   const pageMetrics: GSCPageMetrics[] = (pagesResponse.data.rows || []).map((row: any) => ({
-    site: site.city,
+    site: city,
     date: row.keys[0],
     url: row.keys[1],
     impressions: row.impressions || 0,
@@ -113,7 +109,7 @@ async function fetchGSCData(
   })
 
   const queryMetrics: GSCQueryMetrics[] = (queriesResponse.data.rows || []).map((row: any) => ({
-    site: site.city,
+    site: city,
     date: row.keys[0],
     query: row.keys[1],
     impressions: row.impressions || 0,
@@ -135,10 +131,11 @@ export async function runGSCETL(date?: string): Promise<ETLJobResult> {
   
   log('info', 'Starting GSC ETL', { targetDate })
 
+  const sites = getSitesFromEnv()
   let totalRows = 0
   const errors: string[] = []
 
-  for (const site of SITES) {
+  for (const site of sites) {
     try {
       log('info', `Processing ${site.domain}...`)
 
@@ -162,7 +159,7 @@ export async function runGSCETL(date?: string): Promise<ETLJobResult> {
   }
 
   const completedAt = new Date()
-  const status = errors.length === 0 ? 'success' : errors.length < SITES.length ? 'partial' : 'failed'
+  const status = errors.length === 0 ? 'success' : errors.length < sites.length ? 'partial' : 'failed'
 
   return {
     jobName: 'gsc-fetch',

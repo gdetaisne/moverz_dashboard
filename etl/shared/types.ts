@@ -27,6 +27,36 @@ export interface Site {
   createdAt: Date
 }
 
+// Mapping domaine → ville
+export const DOMAIN_TO_CITY: Record<string, City> = {
+  'devis-demenageur-marseille.fr': 'marseille',
+  'devis-demenageur-toulousain.fr': 'toulouse',
+  'devis-demenageur-lyon.fr': 'lyon',
+  'bordeaux-demenageur.fr': 'bordeaux',
+  'devis-demenageur-nantes.fr': 'nantes',
+  'devis-demenageur-lille.fr': 'lille',
+  'devis-demenageur-nice.fr': 'nice',
+  'devis-demenageur-strasbourg.fr': 'strasbourg',
+  'devis-demenageur-rouen.fr': 'rouen',
+  'devis-demenageur-rennes.fr': 'rennes',
+  'devis-demenageur-montpellier.fr': 'montpellier',
+}
+
+// Helper pour obtenir la ville depuis le domaine
+export function getCityFromDomain(domain: string): City {
+  const city = DOMAIN_TO_CITY[domain]
+  if (!city) {
+    // Fallback: extraire depuis le domaine (ex: devis-demenageur-marseille.fr → marseille)
+    const match = domain.match(/demenageur[s]?-([a-z]+)\.fr/)
+    if (match) {
+      return match[1] as City
+    }
+    return domain.split('.')[0].replace('devis-demenageur-', '') as City
+  }
+  return city
+}
+
+// Sites par défaut (rétrocompatibilité)
 export const SITES: Site[] = [
   { id: '1', city: 'marseille', domain: 'devis-demenageur-marseille.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '2', city: 'toulouse', domain: 'devis-demenageur-toulousain.fr', status: 'active', createdAt: new Date('2025-01-01') },
@@ -40,6 +70,24 @@ export const SITES: Site[] = [
   { id: '10', city: 'rennes', domain: 'devis-demenageur-rennes.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '11', city: 'montpellier', domain: 'devis-demenageur-montpellier.fr', status: 'active', createdAt: new Date('2025-01-01') },
 ]
+
+// Générer la liste des sites depuis SITES_LIST env (si défini)
+export function getSitesFromEnv(): Site[] {
+  const sitesListEnv = process.env.SITES_LIST
+  if (!sitesListEnv) {
+    return SITES
+  }
+
+  const domains = sitesListEnv.split(',').map(s => s.trim()).filter(Boolean)
+  
+  return domains.map((domain, idx) => ({
+    id: String(idx + 1),
+    city: getCityFromDomain(domain),
+    domain,
+    status: 'active' as const,
+    createdAt: new Date('2025-01-01'),
+  }))
+}
 
 // ========================================
 // GOOGLE SEARCH CONSOLE

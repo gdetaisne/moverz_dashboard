@@ -6,13 +6,13 @@ import { BigQuery } from '@google-cloud/bigquery'
 import type { ETLJobResult } from './types.js'
 
 // Configuration
-const projectId = process.env.GCP_PROJECT_ID || 'moverz-analytics'
-const dataset = process.env.BIGQUERY_DATASET || 'moverz'
+const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
+const dataset = process.env.BQ_DATASET || 'analytics_core'
 
 // Initialiser le client
 export const bigquery = new BigQuery({
   projectId,
-  keyFilename: process.env.GOOGLE_SERVICE_ACCOUNT_KEY,
+  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
 })
 
 // ========================================
