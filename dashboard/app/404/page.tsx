@@ -234,8 +234,8 @@ export default function NotFoundPage() {
                 <span>Détecte toutes les erreurs 404 rencontrées</span>
               </li>
               <li className="flex items-start gap-2">
-                <span className="text-orange-600 font-bold">⏱️</span>
-                <span className="font-semibold text-orange-600">Durée estimée : 3-5 minutes pour 11 sites</span>
+                <span className="text-orange-600 font-bold">⚡</span>
+                <span className="font-semibold text-green-600">Crawl parallèle : ~30-60 secondes pour 11 sites !</span>
               </li>
             </ul>
           </div>

@@ -141,22 +141,19 @@ async function crawlSite(domain: string): Promise<CrawlResult> {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log('🚀 Starting recursive crawl on', SITES.length, 'sites...')
+    console.log('🚀 Starting PARALLEL recursive crawl on', SITES.length, 'sites...')
     const overallStart = Date.now()
     
-    const results: CrawlResult[] = []
-    
-    // Crawl sites sequentially to avoid overwhelming the servers
-    for (const site of SITES) {
-      const result = await crawlSite(site)
-      results.push(result)
-    }
+    // 🚀 Crawl all sites in parallel for maximum speed
+    const results = await Promise.all(
+      SITES.map(site => crawlSite(site))
+    )
     
     const totalDuration = Math.round((Date.now() - overallStart) / 1000)
     const totalPages = results.reduce((sum, r) => sum + r.total_checked, 0)
     const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
     
-    console.log(`✅ Crawl completed: ${totalPages} pages, ${totalErrors} errors (${totalDuration}s)`)
+    console.log(`✅ Crawl completed (PARALLEL): ${totalPages} pages, ${totalErrors} errors (${totalDuration}s)`)
     
     return NextResponse.json({
       success: true,
