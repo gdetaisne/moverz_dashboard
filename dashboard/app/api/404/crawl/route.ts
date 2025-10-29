@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import * as cheerio from 'cheerio'
+import { insertError404History } from '@/lib/bigquery'
+import { randomUUID } from 'crypto'
 
 /**
  * POST /api/404/crawl
@@ -202,6 +204,31 @@ export async function POST(request: NextRequest) {
         const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
         
         console.log(`✅ Crawl completed (PARALLEL): ${totalPages} pages, ${totalErrors} errors (${totalDuration}s)`)
+        
+        // Enregistrer dans BigQuery
+        try {
+          const scanId = randomUUID()
+          const now = new Date().toISOString()
+          
+          await insertError404History({
+            id: scanId,
+            scan_date: now,
+            total_sites: results.length,
+            total_pages_checked: totalPages,
+            total_errors_404: totalErrors,
+            sites_results: results.map(r => ({
+              site: r.site,
+              total_checked: r.total_checked,
+              errors_404: r.errors_404,
+            })),
+            crawl_duration_seconds: totalDuration,
+          })
+          
+          console.log(`✅ Historique enregistré dans BigQuery (ID: ${scanId})`)
+        } catch (error: any) {
+          console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error.message)
+          // Ne pas faire échouer le crawl si l'enregistrement échoue
+        }
         
         // Send completion event
         sendEvent('complete', {

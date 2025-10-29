@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2 } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
+import { Error404Evolution } from '@/components/Error404Evolution'
 
 interface ScanResult {
   site: string
@@ -19,6 +20,8 @@ export default function NotFoundPage() {
   const [results, setResults] = useState<ScanResult[]>([])
   const [summary, setSummary] = useState<any>(null)
   const [lastScan, setLastScan] = useState<string | null>(null)
+  const [historyData, setHistoryData] = useState<any[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   
   async function runScan() {
     if (scanning) return
@@ -106,6 +109,26 @@ export default function NotFoundPage() {
       alert('❌ Erreur lors du crawl des 404')
     } finally {
       setScanning(false)
+    }
+  }
+  
+  // Charger l'historique au montage
+  useEffect(() => {
+    loadHistory()
+  }, [])
+  
+  async function loadHistory() {
+    setLoadingHistory(true)
+    try {
+      const response = await fetch('/api/404/history?days=30')
+      const data = await response.json()
+      if (data.success && data.data.evolution) {
+        setHistoryData(data.data.evolution)
+      }
+    } catch (error) {
+      console.error('Failed to load history:', error)
+    } finally {
+      setLoadingHistory(false)
     }
   }
   
@@ -345,6 +368,9 @@ export default function NotFoundPage() {
           </div>
         </div>
       )}
+      
+      {/* Historique - Section Évolution */}
+      <Error404Evolution data={historyData} />
     </div>
   )
 }

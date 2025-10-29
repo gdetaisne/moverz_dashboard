@@ -123,3 +123,103 @@ export async function getTopQueries(site?: string, limit: number = 20) {
   return [] as GSCQueryMetrics[]
 }
 
+// ========================================
+// Errors 404 History
+// ========================================
+
+export interface Error404HistoryEntry {
+  id: string
+  scan_date: string
+  total_sites: number
+  total_pages_checked: number
+  total_errors_404: number
+  sites_results: Array<{
+    site: string
+    total_checked: number
+    errors_404: number
+  }>
+  crawl_duration_seconds: number
+  created_at: string
+}
+
+export interface Error404Evolution {
+  date: string
+  nb_scans: number
+  avg_pages_checked: number
+  avg_errors_404: number
+  max_errors_404: number
+  min_errors_404: number
+  avg_duration_seconds: number
+}
+
+export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
+  const query = `
+    INSERT INTO \`${projectId}.${dataset}.errors_404_history\` (
+      id, scan_date, total_sites, total_pages_checked, total_errors_404,
+      sites_results, crawl_duration_seconds
+    )
+    VALUES (
+      @id, @scan_date, @total_sites, @total_pages_checked, @total_errors_404,
+      @sites_results, @crawl_duration_seconds
+    )
+  `
+  
+  const options = {
+    query,
+    params: {
+      id: entry.id,
+      scan_date: entry.scan_date,
+      total_sites: entry.total_sites,
+      total_pages_checked: entry.total_pages_checked,
+      total_errors_404: entry.total_errors_404,
+      sites_results: JSON.stringify(entry.sites_results),
+      crawl_duration_seconds: entry.crawl_duration_seconds,
+    },
+  }
+  
+  await bigquery.query(options)
+}
+
+export async function getError404Evolution(days: number = 30): Promise<Error404Evolution[]> {
+  const query = `
+    SELECT 
+      DATE(scan_date) as date,
+      COUNT(*) as nb_scans,
+      AVG(total_pages_checked) as avg_pages_checked,
+      AVG(total_errors_404) as avg_errors_404,
+      MAX(total_errors_404) as max_errors_404,
+      MIN(total_errors_404) as min_errors_404,
+      AVG(crawl_duration_seconds) as avg_duration_seconds
+    FROM \`${projectId}.${dataset}.errors_404_history\`
+    WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
+    GROUP BY DATE(scan_date)
+    ORDER BY date DESC
+  `
+  
+  const [rows] = await bigquery.query({ query })
+  return rows as Error404Evolution[]
+}
+
+export async function getLastError404Scan(): Promise<Error404HistoryEntry | null> {
+  const query = `
+    SELECT 
+      id,
+      scan_date,
+      total_sites,
+      total_pages_checked,
+      total_errors_404,
+      sites_results,
+      crawl_duration_seconds,
+      created_at
+    FROM \`${projectId}.${dataset}.errors_404_history\`
+    WHERE scan_date = (
+      SELECT MAX(scan_date) 
+      FROM \`${projectId}.${dataset}.errors_404_history\`
+    )
+    LIMIT 1
+  `
+  
+  const [rows] = await bigquery.query({ query })
+  return rows.length > 0 ? rows[0] as Error404HistoryEntry : null
+}
+
