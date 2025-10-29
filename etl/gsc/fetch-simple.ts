@@ -273,7 +273,7 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
           { name: 'ingested_at', type: 'TIMESTAMP' },
         ],
       },
-      location: 'EU', // Ajuster selon ta région
+      location: 'europe-west1', // Must match dataset location
     })
     
     logger.info({ jobId: job.id }, 'BigQuery MERGE job started')

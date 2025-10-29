@@ -18,15 +18,15 @@ echo "   Project: $PROJECT_ID"
 echo "   Dataset: $DATASET"
 echo ""
 
-# 1. Créer le dataset (EU region)
+# 1. Créer le dataset (europe-west1 region)
 echo "📦 Creating dataset $DATASET..."
-bq mk --location=EU --dataset "$PROJECT_ID:$DATASET" 2>/dev/null || echo "   ℹ️  Dataset already exists"
+bq mk --location=europe-west1 --dataset "$PROJECT_ID:$DATASET" 2>/dev/null || echo "   ℹ️  Dataset already exists"
 
 # 2. Créer la table gsc_daily_metrics
 echo "📊 Creating table $TABLE..."
 bq mk \
   --table \
-  --location=EU \
+  --location=europe-west1 \
   --time_partitioning_field=date \
   --clustering_fields=domain,page \
   --description="Google Search Console metrics (V1 single table)" \

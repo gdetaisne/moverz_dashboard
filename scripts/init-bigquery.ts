@@ -27,7 +27,7 @@ async function main() {
   console.log(`📦 Creating dataset ${DATASET}...`)
   try {
     const [dataset] = await bigquery.createDataset(DATASET, {
-      location: 'EU',
+      location: 'europe-west1',
       description: 'Moverz Analytics Core Dataset',
     })
     console.log(`   ✅ Dataset ${dataset.id} created`)
@@ -57,7 +57,7 @@ async function main() {
   
   const options = {
     schema,
-    location: 'EU',
+    location: 'europe-west1',
     timePartitioning: {
       type: 'DAY',
       field: 'date',
