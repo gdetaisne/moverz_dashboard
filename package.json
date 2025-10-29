@@ -6,10 +6,16 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch etl/scheduler.ts",
+    "build": "tsc",
+    "start": "node dist/etl/gsc/fetch-simple.js",
+    "run:once": "tsx etl/gsc/fetch-simple.ts",
     "etl:gsc": "tsx etl/gsc/fetch.ts",
+    "etl:gsc-simple": "tsx etl/gsc/fetch-simple.ts",
     "etl:ga4": "tsx etl/ga4/export.ts",
     "etl:leads": "tsx etl/leads/sync.ts",
     "etl:vitals": "tsx etl/web-vitals/aggregate.ts",
+    "backfill": "tsx scripts/backfill.ts",
+    "split-tables": "tsx scripts/split-tables.ts",
     "db:migrate": "tsx db/migrations/run.ts",
     "db:seed": "tsx db/seed_sites.ts",
     "dashboard:dev": "cd dashboard && npm run dev",
@@ -17,6 +23,7 @@
     "agents:run": "tsx agents/core/orchestrator.ts",
     "test": "vitest",
     "test:events": "tsx scripts/test/test-ga4-events.ts",
+    "test:bigquery": "tsx scripts/test/validate-bigquery.ts",
     "setup:ga4": "bash scripts/setup/init-ga4.sh",
     "setup:bigquery": "bash scripts/setup/init-bigquery.sh",
     "deploy:tracking": "bash scripts/deploy/sync-tracking-to-sites.sh"
@@ -31,8 +38,11 @@
     "dotenv": "^16.3.1",
     "zod": "^3.22.4",
     "date-fns": "^3.0.6",
+    "date-fns-tz": "^2.0.0",
     "openai": "^4.20.1",
-    "node-cron": "^3.0.3"
+    "node-cron": "^3.0.3",
+    "pino": "^8.17.2",
+    "pino-pretty": "^10.3.1"
   },
   "devDependencies": {
     "@types/node": "^20.10.5",

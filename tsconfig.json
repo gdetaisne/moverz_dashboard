@@ -1,39 +1,47 @@
 {
   "compilerOptions": {
+    /* Language and Environment */
     "target": "ES2022",
-    "module": "ESNext",
     "lib": ["ES2022"],
-    "moduleResolution": "bundler",
-    "resolveJsonModule": true,
-    "allowJs": true,
-    "checkJs": false,
+    "module": "ESNext",
+    "moduleResolution": "node",
+    
+    /* Emit */
     "outDir": "./dist",
     "rootDir": "./",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
     "removeComments": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    
+    /* Type Checking */
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
     "strictFunctionTypes": true,
+    "strictBindCallApply": true,
+    "strictPropertyInitialization": true,
+    "noImplicitThis": true,
+    "alwaysStrict": true,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    
+    /* Interop Constraints */
     "forceConsistentCasingInFileNames": true,
-    "types": ["node"],
-    "paths": {
-      "@/*": ["./*"],
-      "@etl/*": ["./etl/*"],
-      "@db/*": ["./db/*"],
-      "@agents/*": ["./agents/*"],
-      "@dashboard/*": ["./dashboard/*"]
-    }
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    
+    /* Skip type checking for node_modules */
+    "skipLibCheck": true
   },
   "include": [
     "etl/**/*",
-    "db/**/*",
     "agents/**/*",
+    "db/**/*",
     "scripts/**/*"
   ],
   "exclude": [
@@ -42,4 +50,3 @@
     "dashboard"
   ]
 }
-

@@ -157,6 +157,14 @@ npm run etl:gsc
 
 Voir **[CAPROVER-DEPLOY.md](CAPROVER-DEPLOY.md)** pour le guide complet.
 
+### Usage ETL
+
+Voir **[ETL-USAGE.md](ETL-USAGE.md)** pour :
+- 🚀 Usage quotidien (cron, logs, monitoring)
+- ➕ Ajouter un nouveau domaine
+- 🔄 Backfill (remplissage historique)
+- 📊 Migration multi-tables (V1 → V2)
+
 ---
 
 ## 📊 KPIs Suivis
