@@ -29,7 +29,7 @@ const logger = pino({
 const config = {
   gcpProjectId: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
   bqDataset: process.env.BQ_DATASET || 'analytics_core',
-  bqTable: process.env.BQ_TABLE_NAME || 'gsc_daily_metrics',
+  bqTable: process.env.BQ_TABLE_NAME || 'gsc_daily_aggregated', // Nouvelle table (v2 - sans page/query)
   sitesList: process.env.SITES_LIST || '',
   fetchDays: parseInt(process.env.FETCH_DAYS || '3', 10),
   timezone: process.env.TIMEZONE || 'Europe/Paris',
@@ -75,8 +75,6 @@ interface GSCRow {
 interface BQRow {
   date: string // YYYY-MM-DD
   domain: string
-  page: string
-  query: string
   clicks: number
   impressions: number
   ctr: number
@@ -150,7 +148,7 @@ async function fetchGSCData(
       requestBody: {
         startDate,
         endDate,
-        dimensions: ['date', 'page', 'query'], // 3 dimensions = max granularité
+        dimensions: ['date'], // Date uniquement pour éviter le filtrage des clics par Google
         rowLimit: 25000, // Max API
         dataState: 'all', // Inclut les données préliminaires (clics plus récents)
       },
@@ -196,15 +194,13 @@ function transformRows(domain: string, gscRows: GSCRow[]): BQRow[] {
   const now = new Date().toISOString()
   
   return gscRows.map(row => {
-    const [date, page, query] = row.keys
+    const [date] = row.keys // Date uniquement maintenant
     
     // Sanity checks
     if (row.clicks > row.impressions) {
       logger.warn({ 
         domain, 
         date, 
-        page, 
-        query, 
         clicks: row.clicks, 
         impressions: row.impressions 
       }, 'Invalid data: clicks > impressions')
@@ -213,8 +209,6 @@ function transformRows(domain: string, gscRows: GSCRow[]): BQRow[] {
     return {
       date,
       domain,
-      page: page || '(unknown)',
-      query: query || '(not set)',
       clicks: row.clicks,
       impressions: row.impressions,
       ctr: row.ctr,
@@ -248,8 +242,6 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
       schema: [
         { name: 'date', type: 'DATE', mode: 'REQUIRED' },
         { name: 'domain', type: 'STRING', mode: 'REQUIRED' },
-        { name: 'page', type: 'STRING', mode: 'REQUIRED' },
-        { name: 'query', type: 'STRING', mode: 'REQUIRED' },
         { name: 'clicks', type: 'INTEGER', mode: 'REQUIRED' },
         { name: 'impressions', type: 'INTEGER', mode: 'REQUIRED' },
         { name: 'ctr', type: 'FLOAT', mode: 'REQUIRED' },
@@ -267,9 +259,7 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
       MERGE \`${tableRef}\` T
       USING \`${tempTableRef}\` S
       ON T.date = S.date 
-        AND T.domain = S.domain 
-        AND T.page = S.page 
-        AND T.query = S.query
+        AND T.domain = S.domain
       WHEN MATCHED THEN
         UPDATE SET
           clicks = S.clicks,
@@ -278,8 +268,8 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
           position = S.position,
           ingested_at = S.ingested_at
       WHEN NOT MATCHED THEN
-        INSERT (date, domain, page, query, clicks, impressions, ctr, position, ingested_at)
-        VALUES (S.date, S.domain, S.page, S.query, S.clicks, S.impressions, S.ctr, S.position, S.ingested_at)
+        INSERT (date, domain, clicks, impressions, ctr, position, ingested_at)
+        VALUES (S.date, S.domain, S.clicks, S.impressions, S.ctr, S.position, S.ingested_at)
     `
     
     logger.info({ tempTableId }, 'Running MERGE query')
