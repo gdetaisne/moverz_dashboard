@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
-import { DataTable } from '@/components/DataTable'
+import { GroupedDataTable } from '@/components/GroupedDataTable'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { formatNumber, formatPercent, formatPosition } from '@/lib/utils'
 import type { SiteMetrics, GSCGlobalMetrics } from '@/lib/bigquery'
@@ -66,7 +66,50 @@ export default function HomePage() {
     }
   }
   
-  // Calculate totals
+  // Sites avec linking
+  const sitesWithLinking = [
+    'devis-demenageur-strasbourg.fr',
+    'bordeaux-demenageur.fr',
+    'devis-demenageur-montpellier.fr',
+    'devis-demenageur-nantes.fr',
+    'devis-demenageur-rennes.fr',
+  ]
+  
+  // Enrichir les données avec la catégorie linking
+  const enrichedData = globalData.map(site => ({
+    ...site,
+    hasLinking: sitesWithLinking.includes(site.site),
+    linkingLabel: sitesWithLinking.includes(site.site) ? '✅ Oui' : '❌ Non'
+  }))
+  
+  // Séparer et trier
+  const withLinking = enrichedData.filter(s => s.hasLinking).sort((a, b) => b.impressions - a.impressions)
+  const withoutLinking = enrichedData.filter(s => !s.hasLinking).sort((a, b) => b.impressions - a.impressions)
+  
+  // Calculer les sous-totaux
+  const calcSubtotal = (sites: typeof enrichedData) => {
+    const sum = sites.reduce((acc, site) => ({
+      clicks: acc.clicks + site.clicks,
+      impressions: acc.impressions + site.impressions,
+      ctr: acc.ctr + site.ctr,
+      position: acc.position + site.position,
+    }), { clicks: 0, impressions: 0, ctr: 0, position: 0 })
+    
+    return {
+      site: '',
+      clicks: sum.clicks,
+      impressions: sum.impressions,
+      ctr: sites.length > 0 ? sum.ctr / sites.length : 0,
+      position: sites.length > 0 ? sum.position / sites.length : 0,
+      trend_clicks: 0,
+      trend_impressions: 0,
+    }
+  }
+  
+  const subtotalWithLinking = calcSubtotal(withLinking)
+  const subtotalWithoutLinking = calcSubtotal(withoutLinking)
+  
+  // Calculate totals (pour les KPI cards)
   const totals = globalData.reduce((acc, site) => ({
     clicks: acc.clicks + site.clicks,
     impressions: acc.impressions + site.impressions,
@@ -158,18 +201,25 @@ export default function HomePage() {
       {/* Sites Table */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
         <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
-          <h2 className="text-lg font-bold text-slate-800">🌐 Performance par Site</h2>
+          <h2 className="text-lg font-bold text-slate-800">🌐 Performance par Site (Avec/Sans Linking)</h2>
+          <p className="text-sm text-slate-600 mt-1">
+            Comparaison des performances entre sites avec et sans stratégie de linking
+          </p>
         </div>
-        <DataTable
-          data={globalData}
-          columns={[
-            { key: 'site', label: 'Site', format: 'text' },
-            { key: 'impressions', label: 'Impressions', format: 'number' },
-            { key: 'clicks', label: 'Clics', format: 'number' },
-            { key: 'ctr', label: 'CTR', format: 'percent' },
-            { key: 'position', label: 'Position', format: 'position' },
-            { key: 'trend_impressions', label: 'Tendance', format: 'number' },
-          ]}
+        <GroupedDataTable
+          withLinking={withLinking}
+          withoutLinking={withoutLinking}
+          subtotalWithLinking={subtotalWithLinking}
+          subtotalWithoutLinking={subtotalWithoutLinking}
+          grandTotal={{
+            site: 'TOTAL',
+            clicks: totals.clicks,
+            impressions: totals.impressions,
+            ctr: avgCtr,
+            position: avgPosition,
+            trend_clicks: 0,
+            trend_impressions: 0,
+          }}
         />
       </div>
     </div>
