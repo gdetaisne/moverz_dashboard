@@ -279,6 +279,35 @@ export default function NotFoundPage() {
                     )
                   })}
               </tbody>
+              
+              {/* Total Row */}
+              <tfoot className="bg-slate-100 border-t-2 border-slate-300">
+                <tr className="font-bold">
+                  <td className="px-6 py-4 text-sm text-slate-900">
+                    TOTAL ({results.length} sites)
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-700">
+                    {/* Vide pour % Pages Revues */}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-900">
+                    {results.reduce((sum, r) => sum + r.total_checked, 0)}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className="text-orange-600 text-lg font-bold">
+                      {results.reduce((sum, r) => sum + r.errors_404, 0)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-900">
+                    {(() => {
+                      const totalChecked = results.reduce((sum, r) => sum + r.total_checked, 0)
+                      const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
+                      return totalChecked > 0 
+                        ? ((totalErrors / totalChecked) * 100).toFixed(1) + '%'
+                        : '0.0%'
+                    })()}
+                  </td>
+                </tr>
+              </tfoot>
             </table>
           </div>
         </div>
