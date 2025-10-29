@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { AlertTriangle, Search, RefreshCw, ExternalLink } from 'lucide-react'
+import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2 } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 
 interface ScanResult {
@@ -9,7 +9,9 @@ interface ScanResult {
   total_checked: number
   errors_404: number
   errors_list: string[]
-  scan_date: string
+  scan_date?: string
+  progress_percent?: number
+  status?: 'in_progress' | 'completed'
 }
 
 export default function NotFoundPage() {
@@ -22,20 +24,83 @@ export default function NotFoundPage() {
     if (scanning) return
     
     setScanning(true)
+    setResults([])
+    setSummary(null)
+    
     try {
       const response = await fetch('/api/404/crawl', {
         method: 'POST',
       })
       
-      const data = await response.json()
-      
-      if (data.success) {
-        setResults(data.data)
-        setSummary(data.summary)
-        setLastScan(data.timestamp)
-      } else {
-        alert('❌ Erreur lors du crawl : ' + data.message)
+      if (!response.ok) {
+        throw new Error('Network response was not ok')
       }
+      
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      
+      if (!reader) {
+        throw new Error('No response body')
+      }
+      
+      let buffer = ''
+      
+      while (true) {
+        const { done, value } = await reader.read()
+        
+        if (done) break
+        
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+        
+        for (const line of lines) {
+          if (!line.trim()) continue
+          
+          const eventMatch = line.match(/^event: (.+)\ndata: (.+)$/s)
+          if (!eventMatch) continue
+          
+          const [, eventType, dataStr] = eventMatch
+          const data = JSON.parse(dataStr)
+          
+          if (eventType === 'init') {
+            // Initialize results array with empty entries
+            const initialResults = data.sites.map((site: string) => ({
+              site,
+              total_checked: 0,
+              errors_404: 0,
+              errors_list: [],
+              progress_percent: 0,
+              status: 'in_progress' as const,
+            }))
+            setResults(initialResults)
+          } else if (eventType === 'progress') {
+            // Update specific site result
+            setResults(prev => {
+              const index = prev.findIndex(r => r.site === data.site)
+              if (index === -1) return prev
+              
+              const updated = [...prev]
+              updated[index] = {
+                ...updated[index],
+                total_checked: data.total_checked || 0,
+                errors_404: data.errors_404 || 0,
+                errors_list: data.errors_list || [],
+                progress_percent: data.progress_percent || 0,
+                status: data.status || 'in_progress',
+              }
+              return updated
+            })
+          } else if (eventType === 'complete') {
+            setSummary(data.summary)
+            setLastScan(data.timestamp)
+          } else if (eventType === 'error') {
+            console.error('Crawl error:', data)
+            alert('❌ Erreur lors du crawl : ' + data.message)
+          }
+        }
+      }
+      
     } catch (error) {
       console.error('Failed to run crawl:', error)
       alert('❌ Erreur lors du crawl des 404')
@@ -142,6 +207,9 @@ export default function NotFoundPage() {
                     Site
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    % Pages Revues
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Pages Vérifiées
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -163,6 +231,9 @@ export default function NotFoundPage() {
                       ? (result.errors_404 / result.total_checked * 100).toFixed(1) 
                       : '0.0'
                     
+                    const isInProgress = result.status === 'in_progress'
+                    const progress = result.progress_percent || 0
+                    
                     return (
                       <tr key={result.site} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
@@ -175,6 +246,26 @@ export default function NotFoundPage() {
                             {result.site}
                             <ExternalLink className="h-3 w-3" />
                           </a>
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <div className="flex items-center gap-3">
+                            <div className="flex-1 bg-slate-200 rounded-full h-2 w-24">
+                              <div
+                                className={`h-2 rounded-full transition-all duration-300 ${
+                                  progress === 100 ? 'bg-green-600' : 'bg-orange-500'
+                                }`}
+                                style={{ width: `${progress}%` }}
+                              />
+                            </div>
+                            <span className={`font-semibold text-xs ${
+                              progress === 100 ? 'text-green-600' : 'text-slate-700'
+                            }`}>
+                              {progress}%
+                            </span>
+                            {isInProgress && progress < 100 && (
+                              <Loader2 className="h-3 w-3 animate-spin text-orange-500" />
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {result.total_checked}
