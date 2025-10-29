@@ -55,29 +55,39 @@ export function TimeSeriesChart({ data, metric }: TimeSeriesChartProps) {
   return (
     <ResponsiveContainer width="100%" height={300}>
       <LineChart data={sorted}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis 
           dataKey="date" 
           tickFormatter={formatDate}
-          className="text-sm"
+          tick={{ fill: '#64748b', fontSize: 12 }}
+          stroke="#cbd5e1"
         />
-        <YAxis className="text-sm" />
+        <YAxis 
+          tick={{ fill: '#64748b', fontSize: 12 }}
+          stroke="#cbd5e1"
+        />
         <Tooltip 
           labelFormatter={formatDate}
           contentStyle={{ 
             background: 'white', 
-            border: '1px solid #e5e7eb',
-            borderRadius: '0.5rem' 
+            border: '1px solid #e2e8f0',
+            borderRadius: '0.5rem',
+            boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
+            color: '#0f172a'
           }}
+          labelStyle={{ color: '#0f172a', fontWeight: 600 }}
         />
-        <Legend />
+        <Legend 
+          wrapperStyle={{ color: '#475569' }}
+        />
         <Line 
           type="monotone" 
           dataKey={config.dataKey} 
           stroke={config.stroke} 
-          strokeWidth={2}
+          strokeWidth={3}
           name={config.name}
           dot={false}
+          activeDot={{ r: 6, fill: config.stroke }}
         />
       </LineChart>
     </ResponsiveContainer>

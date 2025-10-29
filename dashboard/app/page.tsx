@@ -86,7 +86,7 @@ export default function HomePage() {
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
           <div className="inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-primary-600 border-r-transparent"></div>
-          <p className="mt-4 text-gray-600">Chargement des données...</p>
+          <p className="mt-4 text-slate-600 font-medium">Chargement des données...</p>
         </div>
       </div>
     )
@@ -97,15 +97,15 @@ export default function HomePage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Vue Globale</h1>
-          <p className="mt-1 text-gray-600">Performance SEO des 11 sites Moverz</p>
+          <h1 className="text-4xl font-bold text-slate-900">Vue Globale</h1>
+          <p className="mt-2 text-lg text-slate-600">Performance SEO des 11 sites Moverz</p>
         </div>
         
         <div className="flex items-center gap-3">
           <button
             onClick={runETL}
             disabled={etlLoading}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
           >
             <RefreshCw className={`h-4 w-4 ${etlLoading ? 'animate-spin' : ''}`} />
             {etlLoading ? 'Actualisation...' : 'Actualiser les données'}
@@ -144,21 +144,21 @@ export default function HomePage() {
       
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-lg border p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Évolution des Impressions</h2>
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">📊 Évolution des Impressions</h2>
           <TimeSeriesChart data={timeseriesData} metric="impressions" />
         </div>
         
-        <div className="bg-white rounded-lg border p-6 shadow-sm">
-          <h2 className="text-lg font-semibold mb-4">Évolution des Clics</h2>
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">👆 Évolution des Clics</h2>
           <TimeSeriesChart data={timeseriesData} metric="clicks" />
         </div>
       </div>
       
       {/* Sites Table */}
-      <div className="bg-white rounded-lg border shadow-sm">
-        <div className="px-6 py-4 border-b">
-          <h2 className="text-lg font-semibold">Performance par Site</h2>
+      <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+        <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+          <h2 className="text-lg font-bold text-slate-800">🌐 Performance par Site</h2>
         </div>
         <DataTable
           data={globalData}

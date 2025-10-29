@@ -63,11 +63,11 @@ export function DataTable<T extends Record<string, any>>({ data, columns }: Data
     <div className="overflow-x-auto">
       <table className="w-full border-collapse">
         <thead>
-          <tr className="border-b bg-gray-50">
+          <tr className="border-b border-slate-200 bg-slate-50">
             {columns.map((column) => (
               <th
                 key={String(column.key)}
-                className="px-4 py-3 text-left text-sm font-semibold text-gray-900"
+                className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider"
               >
                 {column.sortable !== false ? (
                   <button
@@ -84,11 +84,11 @@ export function DataTable<T extends Record<string, any>>({ data, columns }: Data
             ))}
           </tr>
         </thead>
-        <tbody>
+        <tbody className="bg-white divide-y divide-slate-200">
           {sortedData.map((row, idx) => (
-            <tr key={idx} className="border-b hover:bg-gray-50 transition-colors">
+            <tr key={idx} className="hover:bg-slate-50 transition-colors">
               {columns.map((column) => (
-                <td key={String(column.key)} className="px-4 py-3 text-sm text-gray-700">
+                <td key={String(column.key)} className="px-6 py-4 text-sm font-medium text-slate-900">
                   {formatCell(row[column.key], column.format)}
                 </td>
               ))}

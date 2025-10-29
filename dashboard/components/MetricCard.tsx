@@ -25,17 +25,19 @@ export function MetricCard({ title, value, trend, format = 'number', icon }: Met
   }
   
   return (
-    <div className="bg-white rounded-lg border p-6 shadow-sm">
+    <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm hover:shadow-md transition-shadow">
       <div className="flex items-center justify-between">
-        <p className="text-sm font-medium text-gray-600">{title}</p>
-        {icon}
+        <p className="text-sm font-semibold text-slate-600 uppercase tracking-wide">{title}</p>
+        <div className="text-slate-400">
+          {icon}
+        </div>
       </div>
       
-      <div className="mt-2 flex items-baseline gap-2">
-        <p className="text-3xl font-bold">{value}</p>
+      <div className="mt-3 flex items-baseline gap-3">
+        <p className="text-4xl font-bold text-slate-900">{value}</p>
         
         {trend !== undefined && (
-          <span className={cn('flex items-center gap-1 text-sm font-medium', getTrendColor())}>
+          <span className={cn('flex items-center gap-1 text-sm font-semibold', getTrendColor())}>
             {getTrendIcon()}
             {Math.abs(trend).toFixed(1)}%
           </span>

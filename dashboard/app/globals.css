@@ -3,38 +3,35 @@
 @tailwind utilities;
 
 :root {
-  --foreground-rgb: 0, 0, 0;
-  --background-start-rgb: 214, 219, 220;
-  --background-end-rgb: 255, 255, 255;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --foreground-rgb: 255, 255, 255;
-    --background-start-rgb: 0, 0, 0;
-    --background-end-rgb: 0, 0, 0;
-  }
+  --foreground-rgb: 15, 23, 42; /* slate-900 - texte sombre */
+  --background-rgb: 248, 250, 252; /* slate-50 - fond clair */
+  --card-rgb: 255, 255, 255; /* blanc pur pour les cartes */
+  --border-rgb: 226, 232, 240; /* slate-200 - bordures subtiles */
 }
 
 body {
   color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
+  background-color: rgb(var(--background-rgb));
+  min-height: 100vh;
 }
 
 @layer base {
+  * {
+    @apply border-gray-200;
+  }
+  
   h1 {
-    @apply text-3xl font-bold tracking-tight;
+    @apply text-3xl font-bold tracking-tight text-slate-900;
   }
   h2 {
-    @apply text-2xl font-semibold tracking-tight;
+    @apply text-2xl font-semibold tracking-tight text-slate-800;
   }
   h3 {
-    @apply text-xl font-semibold;
+    @apply text-xl font-semibold text-slate-700;
+  }
+  
+  p {
+    @apply text-slate-600;
   }
 }
 
