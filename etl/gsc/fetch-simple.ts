@@ -235,55 +235,69 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
   }
   
   const tableRef = `${config.gcpProjectId}.${config.bqDataset}.${config.bqTable}`
+  const tempTableId = `${config.bqTable}_temp_${Date.now()}`
+  const tempTableRef = `${config.gcpProjectId}.${config.bqDataset}.${tempTableId}`
   
-  // MERGE statement (upsert sur clé composite)
-  const mergeQuery = `
-    MERGE \`${tableRef}\` T
-    USING UNNEST(@rows) S
-    ON T.date = S.date 
-      AND T.domain = S.domain 
-      AND T.page = S.page 
-      AND T.query = S.query
-    WHEN MATCHED THEN
-      UPDATE SET
-        clicks = S.clicks,
-        impressions = S.impressions,
-        ctr = S.ctr,
-        position = S.position,
-        ingested_at = S.ingested_at
-    WHEN NOT MATCHED THEN
-      INSERT (date, domain, page, query, clicks, impressions, ctr, position, ingested_at)
-      VALUES (S.date, S.domain, S.page, S.query, S.clicks, S.impressions, S.ctr, S.position, S.ingested_at)
-  `
+  const dataset = bigquery.dataset(config.bqDataset)
+  const tempTable = dataset.table(tempTableId)
   
   try {
-    const [job] = await bigquery.createQueryJob({
-      query: mergeQuery,
-      params: { rows },
-      types: {
-        rows: [
-          { name: 'date', type: 'DATE' },
-          { name: 'domain', type: 'STRING' },
-          { name: 'page', type: 'STRING' },
-          { name: 'query', type: 'STRING' },
-          { name: 'clicks', type: 'INT64' },
-          { name: 'impressions', type: 'INT64' },
-          { name: 'ctr', type: 'FLOAT64' },
-          { name: 'position', type: 'FLOAT64' },
-          { name: 'ingested_at', type: 'TIMESTAMP' },
-        ],
-      },
-      location: 'europe-west1', // Must match dataset location
+    // 1. Créer table temporaire avec le même schéma
+    logger.info({ tempTableId, rowCount: rows.length }, 'Creating temp table')
+    await tempTable.create({
+      schema: [
+        { name: 'date', type: 'DATE', mode: 'REQUIRED' },
+        { name: 'domain', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'page', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'query', type: 'STRING', mode: 'REQUIRED' },
+        { name: 'clicks', type: 'INTEGER', mode: 'REQUIRED' },
+        { name: 'impressions', type: 'INTEGER', mode: 'REQUIRED' },
+        { name: 'ctr', type: 'FLOAT', mode: 'REQUIRED' },
+        { name: 'position', type: 'FLOAT', mode: 'REQUIRED' },
+        { name: 'ingested_at', type: 'TIMESTAMP', mode: 'NULLABLE' },
+      ],
+      location: 'europe-west1',
     })
     
-    logger.info({ jobId: job.id }, 'BigQuery MERGE job started')
+    // 2. Insérer les données
+    await tempTable.insert(rows)
     
-    const [results] = await job.getQueryResults()
+    // 3. MERGE depuis table temporaire vers table principale
+    const mergeQuery = `
+      MERGE \`${tableRef}\` T
+      USING \`${tempTableRef}\` S
+      ON T.date = S.date 
+        AND T.domain = S.domain 
+        AND T.page = S.page 
+        AND T.query = S.query
+      WHEN MATCHED THEN
+        UPDATE SET
+          clicks = S.clicks,
+          impressions = S.impressions,
+          ctr = S.ctr,
+          position = S.position,
+          ingested_at = S.ingested_at
+      WHEN NOT MATCHED THEN
+        INSERT (date, domain, page, query, clicks, impressions, ctr, position, ingested_at)
+        VALUES (S.date, S.domain, S.page, S.query, S.clicks, S.impressions, S.ctr, S.position, S.ingested_at)
+    `
+    
+    logger.info({ tempTableId }, 'Running MERGE query')
+    const [job] = await bigquery.createQueryJob({
+      query: mergeQuery,
+      location: 'europe-west1',
+    })
+    
+    await job.getQueryResults()
     
     logger.info({ 
       jobId: job.id,
-      rowsAffected: results.length 
+      rowsProcessed: rows.length 
     }, 'BigQuery MERGE completed')
+    
+    // 4. Supprimer table temporaire
+    await tempTable.delete()
+    logger.info({ tempTableId }, 'Temp table deleted')
     
     return rows.length
     
@@ -292,6 +306,13 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
       error: error.message,
       tableRef 
     }, 'Failed to upsert to BigQuery')
+    
+    // Cleanup: supprimer la table temporaire en cas d'erreur
+    try {
+      await tempTable.delete()
+    } catch (cleanupError) {
+      // Ignore cleanup errors
+    }
     
     throw error
   }
