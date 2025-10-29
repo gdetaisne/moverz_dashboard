@@ -75,9 +75,8 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD node -e "console.log('healthy')" || exit 1
 
-# Default: run dashboard web
-# Override with ENV APP_MODE=etl for ETL mode
-ENV APP_MODE=dashboard
+# Mode défini via variable d'environnement CapRover
+# APP_MODE peut être: etl, dashboard, dev
 ENV PORT=3000
 
 CMD ["./start.sh"]
