@@ -4,8 +4,7 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# Build
-dist/
+# Build (keep dist/ for multi-stage builds, but not used in single-stage)
 *.tsbuildinfo
 
 # Git

@@ -40,8 +40,6 @@
   },
   "include": [
     "etl/**/*",
-    "agents/**/*",
-    "db/**/*",
     "scripts/**/*"
   ],
   "exclude": [
