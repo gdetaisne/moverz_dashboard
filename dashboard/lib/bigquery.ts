@@ -92,7 +92,7 @@ export async function getTimeSeriesData(site?: string, days: number = 30) {
   
   const query = `
     SELECT 
-      date,
+      FORMAT_DATE('%Y-%m-%d', date) as date,
       domain as site,
       SUM(clicks) as clicks,
       SUM(impressions) as impressions,
