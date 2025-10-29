@@ -26,7 +26,10 @@
     "test:bigquery": "tsx scripts/test/validate-bigquery.ts",
     "setup:ga4": "bash scripts/setup/init-ga4.sh",
     "setup:bigquery": "bash scripts/setup/init-bigquery.sh",
-    "deploy:tracking": "bash scripts/deploy/sync-tracking-to-sites.sh"
+    "deploy:tracking": "bash scripts/deploy/sync-tracking-to-sites.sh",
+    "bq:init": "tsx scripts/init-bigquery.ts",
+    "bq:check": "tsx scripts/check-bigquery.ts",
+    "bq:query": "tsx scripts/query-bigquery.ts"
   },
   "dependencies": {
     "@google-analytics/data": "^4.7.0",
