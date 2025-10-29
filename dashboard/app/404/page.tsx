@@ -23,7 +23,7 @@ export default function NotFoundPage() {
     
     setScanning(true)
     try {
-      const response = await fetch('/api/404/scan', {
+      const response = await fetch('/api/404/crawl', {
         method: 'POST',
       })
       
@@ -34,14 +34,29 @@ export default function NotFoundPage() {
         setSummary(data.summary)
         setLastScan(data.timestamp)
       } else {
-        alert('❌ Erreur lors du scan : ' + data.message)
+        alert('❌ Erreur lors du crawl : ' + data.message)
       }
     } catch (error) {
-      console.error('Failed to run scan:', error)
-      alert('❌ Erreur lors du scan des 404')
+      console.error('Failed to run crawl:', error)
+      alert('❌ Erreur lors du crawl des 404')
     } finally {
       setScanning(false)
     }
+  }
+  
+  // Format time ago
+  const formatTimeAgo = (timestamp: string) => {
+    const now = new Date()
+    const scanDate = new Date(timestamp)
+    const diffMs = now.getTime() - scanDate.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+    
+    if (diffMins < 1) return 'à l\'instant'
+    if (diffMins < 60) return `il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`
+    if (diffHours < 24) return `il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`
+    return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`
   }
   
   const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
@@ -54,27 +69,35 @@ export default function NotFoundPage() {
           <AlertTriangle className="h-10 w-10 text-orange-600" />
           <div>
             <h1 className="text-4xl font-bold text-slate-900">Erreurs 404</h1>
-            <p className="mt-2 text-lg text-slate-600">Scanner de pages introuvables sur les 11 sites Moverz</p>
+            <p className="mt-2 text-lg text-slate-600">Crawler récursif de pages introuvables (tous les liens internes)</p>
           </div>
         </div>
         
-        <button
-          onClick={runScan}
-          disabled={scanning}
-          className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
-        >
-          {scanning ? (
-            <>
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              Analyse en cours...
-            </>
-          ) : (
-            <>
-              <Search className="h-4 w-4" />
-              Analyser les 404
-            </>
+        <div className="flex flex-col items-end gap-2">
+          <button
+            onClick={runScan}
+            disabled={scanning}
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+          >
+            {scanning ? (
+              <>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Crawl en cours...
+              </>
+            ) : (
+              <>
+                <Search className="h-4 w-4" />
+                Analyser les 404
+              </>
+            )}
+          </button>
+          
+          {lastScan && (
+            <p className="text-sm text-slate-500">
+              Dernier scan : <span className="font-semibold text-slate-700">{formatTimeAgo(lastScan)}</span>
+            </p>
           )}
-        </button>
+        </div>
       </div>
       
       {/* Summary Cards */}
@@ -187,13 +210,35 @@ export default function NotFoundPage() {
       ) : (
         <div className="bg-white rounded-lg border border-slate-200 p-12 shadow-sm text-center">
           <AlertTriangle className="h-16 w-16 text-orange-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-slate-800 mb-2">Aucun scan effectué</h2>
+          <h2 className="text-2xl font-bold text-slate-800 mb-2">Aucun crawl effectué</h2>
           <p className="text-slate-600 mb-6">
-            Cliquez sur "Analyser les 404" pour lancer un scan des 11 sites.
+            Cliquez sur "Analyser les 404" pour lancer un crawl récursif des 11 sites.
           </p>
-          <p className="text-sm text-slate-500">
-            Le scan vérifie les pages principales (/, /blog, /devis, /contact, etc.) et détecte les erreurs 404.
-          </p>
+          <div className="bg-slate-50 rounded-lg p-6 max-w-2xl mx-auto text-left">
+            <h3 className="font-semibold text-slate-900 mb-3">🕷️ Fonctionnement du crawler :</h3>
+            <ul className="space-y-2 text-slate-700 text-sm">
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 font-bold">1.</span>
+                <span>Commence à la page d'accueil de chaque site</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 font-bold">2.</span>
+                <span>Parse tous les liens internes trouvés dans le HTML</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 font-bold">3.</span>
+                <span>Suit récursivement chaque lien (max 150 pages/site)</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 font-bold">4.</span>
+                <span>Détecte toutes les erreurs 404 rencontrées</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="text-orange-600 font-bold">⏱️</span>
+                <span className="font-semibold text-orange-600">Durée estimée : 3-5 minutes pour 11 sites</span>
+              </li>
+            </ul>
+          </div>
         </div>
       )}
     </div>
