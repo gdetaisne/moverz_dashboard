@@ -212,14 +212,14 @@ export default function NotFoundPage() {
           <AlertTriangle className="h-16 w-16 text-orange-400 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-slate-800 mb-2">Aucun crawl effectué</h2>
           <p className="text-slate-600 mb-6">
-            Cliquez sur "Analyser les 404" pour lancer un crawl récursif des 11 sites.
+            Cliquez sur &quot;Analyser les 404&quot; pour lancer un crawl récursif des 11 sites.
           </p>
           <div className="bg-slate-50 rounded-lg p-6 max-w-2xl mx-auto text-left">
             <h3 className="font-semibold text-slate-900 mb-3">🕷️ Fonctionnement du crawler :</h3>
             <ul className="space-y-2 text-slate-700 text-sm">
               <li className="flex items-start gap-2">
                 <span className="text-orange-600 font-bold">1.</span>
-                <span>Commence à la page d'accueil de chaque site</span>
+                <span>Commence à la page d&apos;accueil de chaque site</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-orange-600 font-bold">2.</span>

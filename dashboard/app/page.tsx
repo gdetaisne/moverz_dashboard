@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
@@ -16,11 +16,7 @@ export default function HomePage() {
   const [globalData, setGlobalData] = useState<SiteMetrics[]>([])
   const [timeseriesData, setTimeseriesData] = useState<GSCGlobalMetrics[]>([])
   
-  useEffect(() => {
-    fetchData()
-  }, [period])
-  
-  async function fetchData() {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
       const [globalRes, timeseriesRes] = await Promise.all([
@@ -38,7 +34,11 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [period])
+  
+  useEffect(() => {
+    fetchData()
+  }, [fetchData])
   
   async function runETL() {
     if (etlLoading) return
