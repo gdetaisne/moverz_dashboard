@@ -1,0 +1,46 @@
+# ========================================
+# Dockerfile ETL optimisé (RAPIDE)
+# Pour CapRover : mode ETL uniquement
+# ========================================
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Dépendances pour Google Cloud SDK (native modules)
+RUN apk add --no-cache python3 make g++
+
+# Copier package.json et installer deps (avec tsx pour runtime)
+COPY package*.json ./
+RUN npm ci && npm cache clean --force
+
+# Copier le code source ETL
+COPY etl/ ./etl/
+COPY scripts/ ./scripts/
+COPY tsconfig.json ./
+
+# Copier l'entrypoint
+COPY start.sh ./
+RUN chmod +x start.sh
+
+# Mode ETL par défaut
+ENV APP_MODE=etl
+ENV NODE_ENV=production
+
+# Non-root user (sécurité)
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S nodejs -u 1001 && \
+    chown -R nodejs:nodejs /app
+
+USER nodejs
+
+# Healthcheck simple
+HEALTHCHECK --interval=60s --timeout=10s --start-period=30s --retries=2 \
+  CMD node -e "process.exit(0)" || exit 1
+
+CMD ["./start.sh"]
+
+LABEL maintainer="guillaume@moverz.io"
+LABEL version="1.0-etl-only"
+LABEL description="Moverz Analytics ETL - Fast build"
+
