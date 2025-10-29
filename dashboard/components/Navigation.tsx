@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { TrendingUp, AlertTriangle, Settings } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Settings, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Navigation() {
