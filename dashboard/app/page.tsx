@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { TrendingUp, MousePointerClick, Eye, Target } from 'lucide-react'
+import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
 import { DataTable } from '@/components/DataTable'
@@ -12,32 +12,59 @@ import type { SiteMetrics, GSCGlobalMetrics } from '@/lib/bigquery'
 export default function HomePage() {
   const [period, setPeriod] = useState(7)
   const [loading, setLoading] = useState(true)
+  const [etlLoading, setEtlLoading] = useState(false)
   const [globalData, setGlobalData] = useState<SiteMetrics[]>([])
   const [timeseriesData, setTimeseriesData] = useState<GSCGlobalMetrics[]>([])
   
   useEffect(() => {
-    async function fetchData() {
-      setLoading(true)
-      try {
-        const [globalRes, timeseriesRes] = await Promise.all([
-          fetch(`/api/metrics/global?days=${period}`),
-          fetch(`/api/metrics/timeseries?days=30`),
-        ])
-        
-        const globalJson = await globalRes.json()
-        const timeseriesJson = await timeseriesRes.json()
-        
-        if (globalJson.success) setGlobalData(globalJson.data)
-        if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)
-      } catch (error) {
-        console.error('Failed to fetch data:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-    
     fetchData()
   }, [period])
+  
+  async function fetchData() {
+    setLoading(true)
+    try {
+      const [globalRes, timeseriesRes] = await Promise.all([
+        fetch(`/api/metrics/global?days=${period}`),
+        fetch(`/api/metrics/timeseries?days=30`),
+      ])
+      
+      const globalJson = await globalRes.json()
+      const timeseriesJson = await timeseriesRes.json()
+      
+      if (globalJson.success) setGlobalData(globalJson.data)
+      if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)
+    } catch (error) {
+      console.error('Failed to fetch data:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+  
+  async function runETL() {
+    if (etlLoading) return
+    
+    setEtlLoading(true)
+    try {
+      const response = await fetch('/api/etl/run', {
+        method: 'POST',
+      })
+      
+      const result = await response.json()
+      
+      if (result.success) {
+        alert('✅ Données actualisées avec succès !')
+        // Recharger les données après l'ETL
+        await fetchData()
+      } else {
+        alert('❌ Erreur lors de l\'actualisation : ' + result.message)
+      }
+    } catch (error) {
+      console.error('Failed to run ETL:', error)
+      alert('❌ Erreur lors de l\'actualisation des données')
+    } finally {
+      setEtlLoading(false)
+    }
+  }
   
   // Calculate totals
   const totals = globalData.reduce((acc, site) => ({
@@ -74,7 +101,18 @@ export default function HomePage() {
           <p className="mt-1 text-gray-600">Performance SEO des 11 sites Moverz</p>
         </div>
         
-        <PeriodSelector value={period} onChange={setPeriod} />
+        <div className="flex items-center gap-3">
+          <button
+            onClick={runETL}
+            disabled={etlLoading}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RefreshCw className={`h-4 w-4 ${etlLoading ? 'animate-spin' : ''}`} />
+            {etlLoading ? 'Actualisation...' : 'Actualiser les données'}
+          </button>
+          
+          <PeriodSelector value={period} onChange={setPeriod} />
+        </div>
       </div>
       
       {/* KPI Cards */}
