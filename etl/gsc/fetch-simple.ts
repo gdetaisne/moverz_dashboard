@@ -260,6 +260,19 @@ async function upsertToBigQuery(rows: BQRow[]): Promise<number> {
     const [job] = await bigquery.createQueryJob({
       query: mergeQuery,
       params: { rows },
+      types: {
+        rows: [
+          { name: 'date', type: 'DATE' },
+          { name: 'domain', type: 'STRING' },
+          { name: 'page', type: 'STRING' },
+          { name: 'query', type: 'STRING' },
+          { name: 'clicks', type: 'INT64' },
+          { name: 'impressions', type: 'INT64' },
+          { name: 'ctr', type: 'FLOAT64' },
+          { name: 'position', type: 'FLOAT64' },
+          { name: 'ingested_at', type: 'TIMESTAMP' },
+        ],
+      },
       location: 'EU', // Ajuster selon ta région
     })
     
