@@ -7,6 +7,13 @@
 
 set -e
 
+# Create service account key file from env var
+if [ -n "$GCP_SA_KEY_JSON" ]; then
+  echo "📝 Creating service account key file..."
+  echo "$GCP_SA_KEY_JSON" > /tmp/sa-key.json
+  export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa-key.json
+fi
+
 # Default mode: dashboard
 MODE=${APP_MODE:-dashboard}
 
