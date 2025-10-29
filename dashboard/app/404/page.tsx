@@ -218,9 +218,6 @@ export default function NotFoundPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Taux d&apos;Erreur
                   </th>
-                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Pages Cassées
-                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -277,19 +274,6 @@ export default function NotFoundPage() {
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {errorRate}%
-                        </td>
-                        <td className="px-6 py-4 text-sm text-slate-700">
-                          {result.errors_list.length > 0 ? (
-                            <div className="space-y-1">
-                              {result.errors_list.map((path, idx) => (
-                                <div key={idx} className="text-xs font-mono bg-red-50 text-red-700 px-2 py-1 rounded">
-                                  {path}
-                                </div>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-green-600 font-medium">✅ Aucune</span>
-                          )}
                         </td>
                       </tr>
                     )
