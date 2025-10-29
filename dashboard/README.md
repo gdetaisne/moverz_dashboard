@@ -1,177 +1,104 @@
-# 🌐 Dashboard - Interface Web Admin
+# Moverz Analytics Dashboard
 
-Dashboard Next.js pour visualisation des données analytics.
+Dashboard web Next.js 14 pour visualiser les données analytics du réseau Moverz (11 sites).
 
-## 📁 Structure
+## 🎯 Features
 
-```
-dashboard/
-├── app/                         # Next.js App Router
-│   ├── (auth)/                  # Pages protégées
-│   │   ├── overview/            # Vue globale multi-sites
-│   │   ├── sites/               # Détail par site
-│   │   │   └── [city]/
-│   │   ├── agents/              # Suivi agents IA
-│   │   └── alerts/              # Alertes & anomalies
-│   ├── api/                     # API endpoints
-│   │   ├── kpis/
-│   │   └── alerts/
-│   ├── login/
-│   ├── layout.tsx
-│   └── globals.css
-├── components/
-│   ├── charts/                  # Graphiques réutilisables
-│   ├── kpis/                    # Widgets KPIs
-│   └── tables/                  # Tableaux données
-├── lib/
-│   ├── bigquery.ts              # Client BigQuery
-│   └── auth.ts                  # Authentification
-├── public/
-├── next.config.js
-├── package.json
-└── tsconfig.json
-```
+- **Vue Globale** : KPIs agrégés des 11 sites
+- **Graphiques** : Évolution temporelle (impressions, clics, CTR, position)
+- **Par Site** : Analyse détaillée par ville avec top pages/queries
+- **Responsive** : Interface adaptée mobile/tablet/desktop
+- **Real-time** : Données synchronisées depuis BigQuery
 
-## 🚀 Développement
+## 🚀 Développement Local
 
 ```bash
-# Installer les dépendances
-cd dashboard
+# Installer dépendances
 npm install
 
-# Lancer en dev
+# Configurer .env (copier .env.example)
+cp .env.example .env
+
+# Lancer serveur dev
 npm run dev
 
-# Ouvrir http://localhost:3100
+# Ouvrir http://localhost:3000
 ```
 
-## 📊 Pages
+## 📦 Production
 
-### 1. `/overview` - Vue Globale
-- KPIs multi-sites (impressions, clics, leads)
-- Tendances 90 jours
-- Comparaison inter-villes
-- Top 10 pages globales
-
-### 2. `/sites/[city]` - Détail Ville
-- KPIs ville (SEO, conversions, performance)
-- Top pages & requêtes
-- Entonnoir conversion
-- Web Vitals
-
-### 3. `/agents` - Suivi Agents IA
-- Statut agents (actif, dernière exécution)
-- Actions suggérées
-- Historique analyses
-- Logs & erreurs
-
-### 4. `/alerts` - Alertes & Anomalies
-- Liste alertes actives
-- Historique alertes résolues
-- Configuration règles
-- Notifications
-
-## 🔐 Authentification
-
-**JWT-based auth** :
-```typescript
-// Connexion
-POST /api/auth/login
-{ email, password }
-
-// Header requis
-Authorization: Bearer <token>
-```
-
-**Users** : Géré dans `.env`
 ```bash
-ADMIN_EMAIL=guillaume@moverz.io
-ADMIN_PASSWORD_HASH=...
+# Build
+npm run build
+
+# Start
+npm start -p 3000
 ```
 
-## 🎨 Stack UI
+## 🔧 Variables d'Environnement
+
+```bash
+# Google Cloud
+GCP_PROJECT_ID=moverz-dashboard
+BQ_DATASET=analytics_core
+GCP_SA_KEY_JSON={"type":"service_account",...}
+
+# Next.js
+NODE_ENV=production
+PORT=3000
+```
+
+## 📊 Stack Technique
 
 - **Framework** : Next.js 14 (App Router)
 - **Styling** : Tailwind CSS
-- **Charts** : Recharts ou Chart.js
-- **Tables** : TanStack Table
-- **Forms** : React Hook Form + Zod
+- **Charts** : Recharts
 - **Icons** : Lucide React
+- **Database** : BigQuery (via @google-cloud/bigquery)
+- **TypeScript** : Strict mode
 
-## 📡 API Endpoints
+## 🏗️ Structure
 
-### GET `/api/kpis/global`
-```typescript
-// Query params
-{ period: '7d' | '28d' | '90d', city?: string }
-
-// Response
-{
-  impressions: 120000,
-  clicks: 4500,
-  ctr: 0.0375,
-  position: 12.3,
-  leads: 456
-}
+```
+dashboard/
+├── app/
+│   ├── page.tsx          # Home (vue globale)
+│   ├── sites/page.tsx    # Analyse par site
+│   ├── settings/page.tsx # Paramètres
+│   ├── api/              # API Routes BigQuery
+│   │   └── metrics/
+│   │       ├── global/
+│   │       ├── timeseries/
+│   │       ├── pages/
+│   │       └── queries/
+│   ├── layout.tsx        # Layout principal
+│   └── globals.css       # Styles globaux
+├── components/
+│   ├── Navigation.tsx    # Nav bar
+│   ├── MetricCard.tsx    # Carte KPI
+│   ├── TimeSeriesChart.tsx
+│   ├── DataTable.tsx
+│   └── PeriodSelector.tsx
+├── lib/
+│   ├── bigquery.ts       # Queries BigQuery
+│   └── utils.ts          # Helpers
+└── public/               # Assets statiques
 ```
 
-### GET `/api/alerts`
-```typescript
-// Response
-{
-  alerts: [
-    {
-      id: "alert-123",
-      type: "critical",
-      site: "marseille",
-      metric: "impressions",
-      message: "Chute de visibilité -30%",
-      created_at: "2025-10-29T10:00:00Z"
-    }
-  ]
-}
-```
+## 🔐 Sécurité
 
-## 🚀 Déploiement
+- Pas d'exposition des credentials en client
+- API Routes avec validation
+- Headers de sécurité (CSP, X-Frame-Options)
+- Pas de logs sensibles
 
-### Build production
+## 📈 Performance
 
-```bash
-npm run build
-npm run start
-```
+- Server Components par défaut
+- Images optimisées (next/image)
+- Build output: standalone (Docker)
+- Caching API Routes
 
-### Variables d'environnement
+## 🚢 Déploiement
 
-```bash
-# BigQuery (readonly)
-GCP_PROJECT_ID=moverz-analytics
-GOOGLE_SERVICE_ACCOUNT_KEY=...
-
-# Auth
-JWT_SECRET=...
-
-# App
-NEXT_PUBLIC_DASHBOARD_URL=https://dashboard.moverz.io
-```
-
-### Options de déploiement
-
-1. **Vercel** (recommandé)
-   - Push vers GitHub
-   - Auto-deploy
-
-2. **CapRover** (self-hosted)
-   - Dockerfile fourni
-   - Push via webhook
-
-3. **Docker standalone**
-   ```bash
-   docker build -t moverz-dashboard .
-   docker run -p 3100:3100 moverz-dashboard
-   ```
-
----
-
-**Documentation complète** : `/docs/guides/dashboard-dev.md`
-
+Voir [CAPROVER-DEPLOY.md](../CAPROVER-DEPLOY.md) dans le repo parent.
