@@ -152,7 +152,7 @@ async function fetchGSCData(
         endDate,
         dimensions: ['date', 'page', 'query'], // 3 dimensions = max granularité
         rowLimit: 25000, // Max API
-        dataState: 'final', // Données finales uniquement
+        dataState: 'all', // Inclut les données préliminaires (clics plus récents)
       },
     })
     
