@@ -2,8 +2,17 @@
 const nextConfig = {
   reactStrictMode: true,
   
-  // Optimisations
+  // Optimisations build (réduit temps + taille)
   swcMinify: true,
+  
+  // Mode standalone : réduit considérablement la taille de l'image Docker
+  output: 'standalone',
+  
+  // Désactiver certaines fonctionnalités inutiles en prod
+  poweredByHeader: false,
+  
+  // Compresser automatiquement
+  compress: true,
   
   // Env vars accessibles côté client
   env: {

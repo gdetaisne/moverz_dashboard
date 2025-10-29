@@ -210,6 +210,8 @@ export async function POST(request: NextRequest) {
           const scanId = randomUUID()
           const now = new Date().toISOString()
           
+          console.log('💾 Tentative d\'enregistrement dans BigQuery...')
+          
           await insertError404History({
             id: scanId,
             scan_date: now,
@@ -227,7 +229,17 @@ export async function POST(request: NextRequest) {
           console.log(`✅ Historique enregistré dans BigQuery (ID: ${scanId})`)
         } catch (error: any) {
           console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error.message)
+          console.error('⚠️ Détails:', {
+            code: error.code,
+            details: error.details,
+            message: error.message
+          })
+          
           // Ne pas faire échouer le crawl si l'enregistrement échoue
+          // L'enregistrement peut échouer si :
+          // 1. Table BigQuery n'existe pas (migration non appliquée)
+          // 2. Credentials BigQuery manquants ou invalides
+          // 3. Permissions insuffisantes
         }
         
         // Send completion event

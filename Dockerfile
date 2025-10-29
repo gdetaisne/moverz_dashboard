@@ -23,15 +23,31 @@ RUN npm ci && npm cache clean --force
 # ========================================
 FROM base AS dashboard-deps
 
+# Copier seulement package.json pour mettre en cache les deps
 COPY dashboard/package*.json ./dashboard/
-RUN cd dashboard && npm ci && npm cache clean --force
+RUN cd dashboard && npm ci --prefer-offline --no-audit && npm cache clean --force
 
 # ========================================
 # Stage 3: Build Dashboard
 # ========================================
 FROM dashboard-deps AS dashboard-builder
 
-COPY dashboard ./dashboard
+# Copier le reste du code seulement après l'installation des deps
+COPY dashboard/next.config.js ./dashboard/
+COPY dashboard/tailwind.config.ts ./dashboard/
+COPY dashboard/postcss.config.js ./dashboard/
+COPY dashboard/tsconfig.json ./dashboard/
+COPY dashboard/app ./dashboard/app
+COPY dashboard/components ./dashboard/components
+COPY dashboard/lib ./dashboard/lib
+COPY dashboard/public ./dashboard/public
+
+# Build avec variables d'environnement pour optimiser
+ARG NODE_ENV=production
+ARG NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=$NODE_ENV
+ENV NEXT_TELEMETRY_DISABLED=$NEXT_TELEMETRY_DISABLED
+
 RUN cd dashboard && npm run build
 
 # ========================================
@@ -51,12 +67,14 @@ COPY db/ ./db/
 COPY scripts/ ./scripts/
 COPY tsconfig.json ./
 
-# Copy Dashboard build + dependencies
-COPY --from=dashboard-builder /app/dashboard/.next ./dashboard/.next
-COPY --from=dashboard-builder /app/dashboard/node_modules ./dashboard/node_modules
-COPY --from=dashboard-builder /app/dashboard/package*.json ./dashboard/
-COPY --from=dashboard-builder /app/dashboard/public ./dashboard/public
-COPY --from=dashboard-builder /app/dashboard/next.config.js ./dashboard/
+# Copy Dashboard build (mode standalone = plus léger)
+# En mode standalone, Next.js crée .next/standalone avec seulement les fichiers nécessaires
+COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/.next/standalone ./dashboard
+COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/.next/static ./dashboard/.next/static
+COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/public ./dashboard/public
+
+# Le dossier .next/standalone contient déjà node_modules optimisés
+# On n'a plus besoin de copier tout dashboard/node_modules
 
 # Copy entrypoint script
 COPY start.sh ./

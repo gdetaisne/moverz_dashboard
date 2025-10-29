@@ -28,7 +28,8 @@ case "$MODE" in
   dashboard)
     echo "🌐 Starting Dashboard (Next.js on port ${PORT:-3000})"
     cd dashboard
-    exec npm start
+    # En mode standalone, le serveur est dans .next/standalone
+    exec node server.js
     ;;
     
   dev)

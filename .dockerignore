@@ -7,6 +7,11 @@ yarn-error.log*
 # Build (keep dist/ for multi-stage builds, but not used in single-stage)
 *.tsbuildinfo
 
+# Next.js builds (ne pas copier les builds existants)
+dashboard/.next/
+dashboard/out/
+dashboard/.vercel/
+
 # Git
 .git/
 .gitignore
@@ -51,4 +56,10 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Exclure dossiers inutiles du monorepo
+agents/
+scripts/test/
+scripts/setup/
+web/
 

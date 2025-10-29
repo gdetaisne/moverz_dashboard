@@ -31,8 +31,19 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('API /404/history error:', error)
+    // Log plus détaillé pour debug
+    console.error('Full error:', JSON.stringify(error, null, 2))
+    
     return NextResponse.json(
-      { success: false, error: error.message },
+      { 
+        success: false, 
+        error: error.message,
+        details: error.message?.includes('Table not found') 
+          ? 'Migration BigQuery non appliquée ou table inexistante'
+          : 'Erreur lors de la récupération des données',
+        evolution: [], // Retourner tableau vide pour éviter crash UI
+        lastScan: null
+      },
       { status: 500 }
     )
   }
