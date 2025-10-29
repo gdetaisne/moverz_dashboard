@@ -388,17 +388,16 @@ async function runETL(): Promise<number> {
 // CLI Entry Point
 // ========================================
 
-if (require.main === module) {
-  runETL()
-    .then(exitCode => {
-      logger.info({ exitCode }, 'ETL finished')
-      process.exit(exitCode)
-    })
-    .catch(error => {
-      logger.fatal({ error: error.message }, 'ETL crashed')
-      process.exit(1)
-    })
-}
+// Auto-run when executed directly (ES modules compatible)
+runETL()
+  .then(exitCode => {
+    logger.info({ exitCode }, 'ETL finished')
+    process.exit(exitCode)
+  })
+  .catch(error => {
+    logger.fatal({ error: error.message }, 'ETL crashed')
+    process.exit(1)
+  })
 
 export { runETL, processDomain }
 
