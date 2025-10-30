@@ -9,6 +9,7 @@ interface ScanResult {
   site: string
   total_checked: number
   errors_404: number
+  broken_links: number
   errors_list: string[]
   scan_date?: string
   progress_percent?: number
@@ -87,10 +88,11 @@ export default function NotFoundPage() {
               updated[index] = {
                 ...updated[index],
                 total_checked: data.total_checked || 0,
-                errors_404: data.errors_404 || 0,
-                errors_list: data.errors_list || [],
-                progress_percent: data.progress_percent || 0,
-                status: data.status || 'in_progress',
+              errors_404: data.errors_404 || 0,
+              broken_links: data.broken_links || 0,
+              errors_list: data.errors_list || [],
+              progress_percent: data.progress_percent || 0,
+              status: data.status || 'in_progress',
               }
               return updated
             })
@@ -239,6 +241,9 @@ export default function NotFoundPage() {
                     Erreurs 404
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Liens Cassés
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Taux d&apos;Erreur
                   </th>
                 </tr>
@@ -295,6 +300,11 @@ export default function NotFoundPage() {
                             {result.errors_404}
                           </span>
                         </td>
+                        <td className="px-6 py-4 text-sm font-bold">
+                          <span className={result.broken_links > 0 ? 'text-red-600' : 'text-green-600'}>
+                            {result.broken_links || 0}
+                          </span>
+                        </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {errorRate}%
                         </td>
@@ -318,6 +328,11 @@ export default function NotFoundPage() {
                   <td className="px-6 py-4 text-sm">
                     <span className="text-orange-600 text-lg font-bold">
                       {results.reduce((sum, r) => sum + r.errors_404, 0)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className="text-red-600 text-lg font-bold">
+                      {results.reduce((sum, r) => sum + (r.broken_links || 0), 0)}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-900">

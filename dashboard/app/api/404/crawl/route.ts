@@ -26,6 +26,7 @@ interface CrawlResult {
   site: string
   total_checked: number
   errors_404: number
+  broken_links: number
   errors_list: string[]
   scan_date: string
   crawl_duration: number
@@ -46,6 +47,8 @@ async function crawlSite(
   const startTime = Date.now()
   const visited = new Set<string>()
   const errors: string[] = []
+  const brokenPages = new Set<string>() // Pages retournant 404
+  const brokenLinks = new Set<string>() // Liens qui pointent vers des pages 404
   const toVisit: string[] = [`https://${domain}/`]
   
   console.log(`🕷️ Crawling ${domain}...`)
@@ -76,6 +79,7 @@ async function crawlSite(
       if (response.status === 404) {
         const path = new URL(url).pathname
         errors.push(path)
+        brokenPages.add(path)
         console.log(`  ❌ 404: ${path}`)
         continue
       }
@@ -113,6 +117,12 @@ async function crawlSite(
               return
             }
             
+            // Check if this link points to a broken page
+            const targetPath = absoluteUrl.pathname
+            if (brokenPages.has(targetPath)) {
+              brokenLinks.add(url) // Track the source page that has the broken link
+            }
+            
             if (!visited.has(cleanUrl) && !toVisit.includes(cleanUrl)) {
               toVisit.push(cleanUrl)
             }
@@ -136,21 +146,23 @@ async function crawlSite(
         site: domain,
         total_checked: visited.size,
         errors_404: errors.length,
+        broken_links: brokenLinks.size,
         errors_list: errors.slice(0, 50),
         progress_percent: progress,
         status: 'in_progress',
       })
-      console.log(`  📊 ${domain}: ${visited.size} pages crawled, ${errors.length} errors (${progress}%)`)
+      console.log(`  📊 ${domain}: ${visited.size} pages crawled, ${errors.length} errors, ${brokenLinks.size} broken links (${progress}%)`)
     }
   }
   
   const duration = Math.round((Date.now() - startTime) / 1000)
-  console.log(`✅ ${domain} completed: ${visited.size} pages, ${errors.length} errors (${duration}s)`)
+  console.log(`✅ ${domain} completed: ${visited.size} pages, ${errors.length} errors, ${brokenLinks.size} broken links (${duration}s)`)
   
   const finalResult = {
     site: domain,
     total_checked: visited.size,
     errors_404: errors.length,
+    broken_links: brokenLinks.size,
     errors_list: errors.slice(0, 50), // Limit to 50 errors for display
     scan_date: new Date().toISOString(),
     crawl_duration: duration,
