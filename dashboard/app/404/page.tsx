@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2 } from 'lucide-react'
+import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 import { Error404Evolution } from '@/components/Error404Evolution'
 
@@ -153,6 +153,45 @@ export default function NotFoundPage() {
   }
   
   const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
+  
+  // Export CSV des liens cassés
+  function exportBrokenLinksToCSV() {
+    // Collecter tous les liens cassés
+    const allLinks = results
+      .filter(r => r.broken_links_list && r.broken_links_list.length > 0)
+      .flatMap(result =>
+        result.broken_links_list!.map(link => ({
+          site: result.site,
+          page_source: link.source,
+          lien_casse: link.target,
+        }))
+      )
+    
+    if (allLinks.length === 0) {
+      alert('Aucun lien cassé à exporter')
+      return
+    }
+    
+    // Créer le CSV
+    const headers = ['Site', 'Page Source', 'Lien Cassé']
+    const csvContent = [
+      headers.join(','),
+      ...allLinks.map(link => [
+        link.site,
+        `"${link.page_source}"`,
+        `"${link.lien_casse}"`
+      ].join(','))
+    ].join('\n')
+    
+    // Créer le blob et télécharger
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `liens-casses-${new Date().toISOString().split('T')[0]}.csv`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
   
   return (
     <div className="space-y-8">
@@ -396,12 +435,21 @@ export default function NotFoundPage() {
                 <AlertTriangle className="h-5 w-5 text-red-600" />
                 <h2 className="text-lg font-bold text-slate-800">🔗 Liens Cassés Détail</h2>
               </div>
-              <button
-                onClick={() => setShowBrokenLinksTable(!showBrokenLinksTable)}
-                className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
-              >
-                {showBrokenLinksTable ? 'Masquer' : 'Afficher'} les détails
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={exportBrokenLinksToCSV}
+                  className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition-all shadow-sm hover:shadow-md"
+                >
+                  <Download className="h-4 w-4" />
+                  Exporter CSV
+                </button>
+                <button
+                  onClick={() => setShowBrokenLinksTable(!showBrokenLinksTable)}
+                  className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
+                >
+                  {showBrokenLinksTable ? 'Masquer' : 'Afficher'} les détails
+                </button>
+              </div>
             </div>
             <p className="text-sm text-slate-600 mt-2">
               {results.reduce((sum, r) => sum + (r.broken_links_list?.length || 0), 0)} liens cassés détectés
