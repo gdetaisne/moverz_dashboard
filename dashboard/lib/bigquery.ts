@@ -58,6 +58,7 @@ export async function getGlobalMetrics(days: number = 7): Promise<SiteMetrics[]>
         AVG(position) as position
       FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+        AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
       GROUP BY domain
     ),
     previous_period AS (
@@ -68,6 +69,7 @@ export async function getGlobalMetrics(days: number = 7): Promise<SiteMetrics[]>
       FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)
         AND date < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+        AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
       GROUP BY domain
     )
     SELECT 
@@ -100,6 +102,7 @@ export async function getTimeSeriesData(site?: string, days: number = 30) {
       AVG(position) as position
     FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
+      AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
       ${siteFilter}
     GROUP BY date, domain
     ORDER BY date DESC, domain
@@ -110,10 +113,66 @@ export async function getTimeSeriesData(site?: string, days: number = 30) {
 }
 
 export async function getTopPages(site?: string, limit: number = 20) {
-  // NOTE: La dimension "page" n'est plus collectée dans gsc_daily_aggregated
-  // pour éviter le filtrage des clics par Google (privacy threshold)
-  // Retourne un tableau vide pour l'instant
-  return [] as GSCPageMetrics[]
+  // Try 1: prefer the materialized view gsc_pages_summary if present
+  const siteFilter = site ? `WHERE domain = @site` : ''
+  const queryView = `
+    SELECT 
+      domain as domain,
+      page as page,
+      clicks as clicks,
+      impressions as impressions,
+      ctr as ctr,
+      avg_position as position
+    FROM \`${projectId}.${dataset}.gsc_pages_summary\`
+    ${siteFilter}
+    ORDER BY impressions DESC
+    LIMIT @limit
+  `
+
+  try {
+    const paramsView: Record<string, any> = { limit }
+    if (site) paramsView.site = site
+    const [rows] = await bigquery.query({ query: queryView, params: paramsView })
+    return rows as unknown as GSCPageMetrics[]
+  } catch (e: any) {
+    // Fallback: compute from gsc_daily_metrics (30 days)
+    const queryFallback = `
+      WITH recent_data AS (
+        SELECT 
+          domain,
+          page,
+          SUM(clicks) AS clicks,
+          SUM(impressions) AS impressions,
+          SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr,
+          AVG(position) AS position
+        FROM \`${projectId}.${dataset}.gsc_daily_metrics\`
+        WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+          AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+          ${site ? 'AND domain = @site' : ''}
+        GROUP BY domain, page
+      )
+      SELECT *
+      FROM recent_data
+      ORDER BY impressions DESC
+      LIMIT @limit
+    `
+    const paramsFallback: Record<string, any> = { limit }
+    if (site) paramsFallback.site = site
+    const [rows] = await bigquery.query({ query: queryFallback, params: paramsFallback })
+    return rows as unknown as GSCPageMetrics[]
+  }
+}
+
+export async function getTotalImpressionsLast30Days(): Promise<number> {
+  const query = `
+    SELECT SUM(impressions) AS total_impressions
+    FROM \`${projectId}.${dataset}.gsc_daily_metrics\`
+    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
+      AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
+  `
+  const [rows] = await bigquery.query({ query })
+  const total = (rows?.[0]?.total_impressions as number) || 0
+  return Number(total) || 0
 }
 
 export async function getTopQueries(site?: string, limit: number = 20) {

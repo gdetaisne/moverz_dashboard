@@ -271,7 +271,7 @@ export default function HomePage() {
       {/* Modal plein écran - Impressions */}
       {showFullImpr && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white w-[95vw] h-[85vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
+          <div className="bg-white w-[95vw] h-[95vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xl font-bold text-slate-900">📊 Évolution des Impressions par site</h3>
               <button
@@ -282,8 +282,8 @@ export default function HomePage() {
                 Fermer
               </button>
             </div>
-            <div className="flex-1">
-              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="impressions" />
+            <div className="flex-1 min-h-0">
+              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="impressions" height="100%" />
             </div>
           </div>
         </div>
@@ -292,7 +292,7 @@ export default function HomePage() {
       {/* Modal plein écran - Clics */}
       {showFullClicks && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
-          <div className="bg-white w-[95vw] h-[85vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
+          <div className="bg-white w-[95vw] h-[95vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-xl font-bold text-slate-900">👆 Évolution des Clics par site</h3>
               <button
@@ -303,8 +303,8 @@ export default function HomePage() {
                 Fermer
               </button>
             </div>
-            <div className="flex-1">
-              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" />
+            <div className="flex-1 min-h-0">
+              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" height="100%" />
             </div>
           </div>
         </div>

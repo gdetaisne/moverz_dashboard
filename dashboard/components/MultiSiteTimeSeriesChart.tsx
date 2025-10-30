@@ -1,6 +1,7 @@
 'use client'
 
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
+import { useState, useMemo } from 'react'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
 
@@ -14,6 +15,7 @@ interface MultiSiteTimeSeriesChartProps {
     position?: number
   }>
   metric: 'clicks' | 'impressions'
+  height?: number | string
 }
 
 const COLORS = [
@@ -21,7 +23,8 @@ const COLORS = [
   '#ec4899', '#22c55e', '#6366f1', '#eab308', '#06b6d4', '#f97316'
 ]
 
-export function MultiSiteTimeSeriesChart({ data, metric }: MultiSiteTimeSeriesChartProps) {
+export function MultiSiteTimeSeriesChart({ data, metric, height }: MultiSiteTimeSeriesChartProps) {
+  const [hoveredSite, setHoveredSite] = useState<string | null>(null)
   const formatDate = (dateStr: string) => {
     try {
       return format(parseISO(dateStr), 'd MMM', { locale: fr })
@@ -31,7 +34,7 @@ export function MultiSiteTimeSeriesChart({ data, metric }: MultiSiteTimeSeriesCh
   }
 
   // Collect unique sites
-  const sites = Array.from(new Set(data.map(d => d.site))).sort()
+  const sites = useMemo(() => Array.from(new Set(data.map(d => d.site))).sort(), [data])
 
   // Index by date, pivot values by site
   const byDate: Record<string, any> = {}
@@ -44,7 +47,7 @@ export function MultiSiteTimeSeriesChart({ data, metric }: MultiSiteTimeSeriesCh
   const rows = Object.values(byDate).sort((a: any, b: any) => String(a.date).localeCompare(String(b.date)))
 
   return (
-    <ResponsiveContainer width="100%" height={300}>
+    <ResponsiveContainer width="100%" height={height ?? 300}>
       <LineChart data={rows}>
         <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
         <XAxis 
@@ -68,7 +71,11 @@ export function MultiSiteTimeSeriesChart({ data, metric }: MultiSiteTimeSeriesCh
           }}
           labelStyle={{ color: '#0f172a', fontWeight: 600 }}
         />
-        <Legend wrapperStyle={{ color: '#475569' }} />
+        <Legend 
+          wrapperStyle={{ color: '#475569' }}
+          onMouseEnter={(o: any) => setHoveredSite(String(o.dataKey ?? o.value ?? ''))}
+          onMouseLeave={() => setHoveredSite(null)}
+        />
         {sites.map((site, idx) => (
           <Line
             key={site}
@@ -79,6 +86,9 @@ export function MultiSiteTimeSeriesChart({ data, metric }: MultiSiteTimeSeriesCh
             strokeWidth={2}
             dot={false}
             activeDot={{ r: 5, fill: COLORS[idx % COLORS.length] }}
+            strokeOpacity={hoveredSite && hoveredSite !== site ? 0.15 : 1}
+            onMouseEnter={() => setHoveredSite(site)}
+            onMouseLeave={() => setHoveredSite(null)}
           />
         ))}
       </LineChart>
