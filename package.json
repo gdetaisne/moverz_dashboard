@@ -21,6 +21,8 @@
     "dashboard:dev": "cd dashboard && npm run dev",
     "dashboard:build": "cd dashboard && npm run build",
     "agents:run": "tsx agents/core/orchestrator.ts",
+    "agent:report": "tsx scripts/run-report-generator.ts",
+    "agent:traffic": "tsx scripts/run-traffic-analyst.ts",
     "test": "vitest",
     "test:events": "tsx scripts/test/test-ga4-events.ts",
     "test:bigquery": "tsx scripts/test/validate-bigquery.ts",
