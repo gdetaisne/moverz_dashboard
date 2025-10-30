@@ -6,10 +6,6 @@ import OpenAI from 'openai'
  * Analyse GPT-4 des patterns 404
  */
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-})
-
 interface AnalyzeRequest {
   results: Array<{
     site: string
@@ -113,6 +109,11 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+    
+    // Instanciation lazy d'OpenAI (seulement au runtime, pas au build)
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    })
     
     // Collecter toutes les erreurs
     const allErrors: Array<{ site: string; url: string }> = []
