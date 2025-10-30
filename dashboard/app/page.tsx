@@ -6,6 +6,7 @@ import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
 import { GroupedDataTable } from '@/components/GroupedDataTable'
 import { PeriodSelector } from '@/components/PeriodSelector'
+import ChatBot from '@/components/ChatBot'
 import { formatNumber, formatPercent, formatPosition } from '@/lib/utils'
 import type { SiteMetrics, GSCGlobalMetrics } from '@/lib/bigquery'
 
@@ -15,6 +16,7 @@ export default function HomePage() {
   const [etlLoading, setEtlLoading] = useState(false)
   const [globalData, setGlobalData] = useState<SiteMetrics[]>([])
   const [timeseriesData, setTimeseriesData] = useState<GSCGlobalMetrics[]>([])
+  const [chatOpen, setChatOpen] = useState(false)
   
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -222,6 +224,9 @@ export default function HomePage() {
           }}
         />
       </div>
+
+      {/* ChatBot flottant */}
+      <ChatBot isOpen={chatOpen} onToggle={() => setChatOpen(!chatOpen)} />
     </div>
   )
 }
