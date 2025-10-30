@@ -66,6 +66,9 @@ ENV/
 data/raw/
 data/private/
 
+# Historique 404 (données générées automatiquement)
+dashboard/data/
+
 # Backups
 *.bak
 *.backup
