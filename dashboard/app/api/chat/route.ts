@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
 
       try {
         data = await query(sql)
-          console.log(`✅ Query executed: ${data.length} rows returned`)
+        console.log(`✅ Query executed: ${data.length} rows returned`)
       } catch (queryError: any) {
         console.error('❌ Query error:', queryError.message)
         error = queryError.message
@@ -140,9 +140,9 @@ export async function POST(request: NextRequest) {
       let analysis = null
       
       if (!error && data.length > 0) {
-      console.log('🧠 Analyzing results with GPT...')
-      
-      const analysisPrompt = `
+        console.log('🧠 Analyzing results with GPT...')
+        
+        const analysisPrompt = `
 Tu es un expert en analytics web et SEO pour des sites de déménagement.
 
 Question posée: "${message}"
