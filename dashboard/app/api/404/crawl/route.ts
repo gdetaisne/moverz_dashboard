@@ -124,8 +124,11 @@ async function crawlSite(
   
   // Pass 1 : Crawl récursif pour découvrir toutes les URLs et leurs statuts
   while (toVisit.size > 0 && visited.size < MAX_PAGES_PER_SITE) {
-    const url = Array.from(toVisit)[0]
-    toVisit.delete(url)
+    const urlRaw = Array.from(toVisit)[0]
+    toVisit.delete(urlRaw)
+    
+    // Normaliser l'URL avant traitement
+    const url = normalizeUrl(urlRaw)
     
     if (visited.has(url)) continue
     visited.add(url)
@@ -180,8 +183,10 @@ async function crawlSite(
               if (shouldSkipUrl(normalizedTarget)) return
               
               // Ajouter l'arête (lien)
+              // Normaliser aussi la source pour cohérence
+              const normalizedSource = normalizeUrl(url)
               edges.push({
-                source: url,
+                source: normalizedSource,
                 target: normalizedTarget,
               })
               
@@ -241,15 +246,38 @@ async function crawlSite(
   const brokenLinksList: Array<{ source: string; target: string }> = []
   
   // Parcourir toutes les arêtes (liens) trouvées
+  const seenLinks = new Set<string>() // Pour dédupliquer les liens cassés
+  let statsNonVisited = 0
+  let stats404 = 0
+  let statsOther = 0
+  
   for (const edge of edges) {
-    const targetStatus = urlStatus.get(edge.target)
+    // Normaliser la target et source pour s'assurer de la cohérence
+    const normalizedTarget = normalizeUrl(edge.target)
+    const normalizedSource = normalizeUrl(edge.source)
+    const targetStatus = urlStatus.get(normalizedTarget)
     
-    // Un lien est cassé si la cible est 404 ou 410
+    // Un lien est cassé SEULEMENT si :
+    // 1. La cible a un statut défini (a été crawlée)
+    // 2. ET ce statut est 404 ou 410
     if (targetStatus === 404 || targetStatus === 410) {
-      brokenLinksList.push({
-        source: edge.source,
-        target: edge.target,
-      })
+      stats404++
+      // Dédupliquer : même source -> même target = un seul lien cassé
+      const linkKey = `${normalizedSource} -> ${normalizedTarget}`
+      
+      if (!seenLinks.has(linkKey)) {
+        seenLinks.add(linkKey)
+        brokenLinksList.push({
+          source: normalizedSource,
+          target: normalizedTarget,
+        })
+      }
+    } else if (targetStatus === undefined) {
+      // URL non visitée : on ne peut pas savoir si elle est cassée, donc on ignore
+      // (C'est normal si la limite de 300 pages est atteinte)
+      statsNonVisited++
+    } else {
+      statsOther++
     }
   }
   
@@ -258,6 +286,7 @@ async function crawlSite(
   const notAnalyzed = Math.max(0, totalFound - visited.size)
   
   console.log(`✅ ${domain} completed: ${visited.size}/${totalFound} pages, ${errors.length} erreurs 404/410, ${brokenLinksList.length} liens cassés (${duration}s)`)
+  console.log(`  📊 Stats Pass 2: ${stats404} liens vers 404/410, ${statsNonVisited} vers URLs non visitées, ${statsOther} autres statuts`)
   
   const finalResult: CrawlResult = {
     site: domain,
