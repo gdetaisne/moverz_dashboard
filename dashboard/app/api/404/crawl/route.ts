@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import * as cheerio from 'cheerio'
-import { insertError404History } from '@/lib/json-storage'
+import { insertError404History, saveBrokenLinks } from '@/lib/json-storage'
 import { randomUUID } from 'crypto'
 
 /**
@@ -229,6 +229,20 @@ export async function POST(request: NextRequest) {
         const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
         
         console.log(`✅ Crawl completed (PARALLEL): ${totalPages} pages, ${totalErrors} errors (${totalDuration}s)`)
+        
+        // Sauvegarder les liens cassés persistants
+        try {
+          const brokenLinksBySite = results.map(r => ({
+            site: r.site,
+            broken_links: r.broken_links_list || [],
+            last_scan_date: r.scan_date
+          }))
+          
+          await saveBrokenLinks(brokenLinksBySite)
+          console.log('✅ Liens cassés sauvegardés pour le prochain scan')
+        } catch (error: any) {
+          console.error('⚠️ Erreur lors de la sauvegarde des liens cassés:', error.message)
+        }
         
         // Enregistrer dans BigQuery
         try {

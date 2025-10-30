@@ -13,9 +13,15 @@ interface Error404HistoryEntry {
     site: string
     total_checked: number
     errors_404: number
+    broken_links?: number
   }>
   crawl_duration_seconds: number
   created_at: string
+}
+
+export interface BrokenLink {
+  source: string
+  target: string
 }
 
 export interface Error404Evolution {
