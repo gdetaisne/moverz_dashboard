@@ -39,6 +39,8 @@ interface AnalysisResult {
   insights: string[]
 }
 
+export const dynamic = 'force-dynamic'
+
 const SYSTEM_PROMPT = `Tu es un expert en analyse de sites web et d'erreurs 404.
 
 Ton rôle :

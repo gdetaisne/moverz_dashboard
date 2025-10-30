@@ -54,6 +54,8 @@ interface SiteData {
     summary: string
     severity: string
     created_at: string
+    agent?: string
+    site?: string
   }>
 }
 
@@ -284,6 +286,8 @@ export default function SitePage() {
                       insight={{
                         ...insight,
                         id: `${domain}-${idx}`,
+                        site: insight.site || domain,
+                        agent: insight.agent || 'report-generator',
                         run_date: new Date(insight.created_at).toISOString().split('T')[0]
                       }} 
                       showSite={false}
