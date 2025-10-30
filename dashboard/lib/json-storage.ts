@@ -24,6 +24,12 @@ export interface BrokenLink {
   target: string
 }
 
+export interface SiteBrokenLinks {
+  site: string
+  broken_links: BrokenLink[]
+  last_scan_date: string
+}
+
 export interface Error404Evolution {
   date: string
   nb_scans: number
@@ -152,5 +158,38 @@ export async function getLastError404Scan(): Promise<Error404HistoryEntry | null
   )
   
   return sorted[0]
+}
+
+// Fichier séparé pour stocker les liens cassés persistants
+const BROKEN_LINKS_FILE = path.join(process.cwd(), 'data', 'broken-links.json')
+
+// Lire les liens cassés persistants
+export async function loadBrokenLinks(): Promise<SiteBrokenLinks[]> {
+  ensureDataDir()
+  
+  if (!fs.existsSync(BROKEN_LINKS_FILE)) {
+    return []
+  }
+  
+  try {
+    const content = fs.readFileSync(BROKEN_LINKS_FILE, 'utf-8')
+    return JSON.parse(content)
+  } catch (error) {
+    console.error('Failed to read broken links file:', error)
+    return []
+  }
+}
+
+// Sauvegarder les liens cassés persistants
+export async function saveBrokenLinks(linksBySite: SiteBrokenLinks[]) {
+  ensureDataDir()
+  
+  try {
+    fs.writeFileSync(BROKEN_LINKS_FILE, JSON.stringify(linksBySite, null, 2))
+    console.log('✅ Liens cassés sauvegardés')
+  } catch (error) {
+    console.error('Failed to save broken links file:', error)
+    throw error
+  }
 }
 
