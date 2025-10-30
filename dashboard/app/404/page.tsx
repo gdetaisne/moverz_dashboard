@@ -290,7 +290,12 @@ export default function NotFoundPage() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <h2 className="text-lg font-bold text-slate-800">Delta dernier commit</h2>
-              <span className="text-sm text-slate-500">{delta.from_scan_id.slice(0,8)} → {delta.to_scan_id.slice(0,8)}</span>
+              {(() => {
+                const d = (delta.broken_links || delta.urls_404 || delta)
+                return (
+                  <span className="text-sm text-slate-500">{d?.from_scan_id?.slice?.(0,8)} → {d?.to_scan_id?.slice?.(0,8)}</span>
+                )
+              })()}
             </div>
             <button
               onClick={loadDelta}
@@ -304,29 +309,30 @@ export default function NotFoundPage() {
               <TrendingDown className="h-5 w-5 text-green-600" />
               <div>
                 <div className="text-xs uppercase text-slate-600 font-semibold">Corrigées</div>
-                <div className="text-2xl font-bold text-green-700">{delta.lost.length}</div>
+                <div className="text-2xl font-bold text-green-700">{(delta.broken_links?.lost?.length) ?? (delta.urls_404?.lost?.length) ?? 0}</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-md border border-slate-200 bg-slate-50">
               <TrendingUp className="h-5 w-5 text-red-600" />
               <div>
                 <div className="text-xs uppercase text-slate-600 font-semibold">Nouvelles</div>
-                <div className="text-2xl font-bold text-red-700">{delta.gained.length}</div>
+                <div className="text-2xl font-bold text-red-700">{(delta.broken_links?.gained?.length) ?? (delta.urls_404?.gained?.length) ?? 0}</div>
               </div>
             </div>
             <div className="flex items-center gap-3 p-3 rounded-md border border-slate-200 bg-slate-50">
               <Minus className="h-5 w-5 text-slate-600" />
               <div>
                 <div className="text-xs uppercase text-slate-600 font-semibold">Persistantes</div>
-                <div className="text-2xl font-bold text-slate-800">{delta.persisting}</div>
+                <div className="text-2xl font-bold text-slate-800">{(delta.broken_links?.persisting) ?? (delta.urls_404?.persisting) ?? 0}</div>
               </div>
             </div>
           </div>
-          {(delta.gained.length > 0 || delta.lost.length > 0) && (
+          {(((delta.broken_links?.gained?.length || 0) + (delta.broken_links?.lost?.length || 0)) > 0
+            || ((delta.urls_404?.gained?.length || 0) + (delta.urls_404?.lost?.length || 0)) > 0) && (
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Nouvelles */}
               <div className="border border-slate-200 rounded-md overflow-hidden">
-                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800">Nouvelles 404/410</div>
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800">Nouvelles (liens cassés visibles ou 404)</div>
                 <div className="max-h-72 overflow-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 sticky top-0">
@@ -336,13 +342,13 @@ export default function NotFoundPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {delta.gained.map((it: any, idx: number) => (
+                      {(delta.broken_links?.gained || delta.urls_404?.gained || []).map((it: any, idx: number) => (
                         <tr key={`g-${idx}`} className="hover:bg-slate-50">
                           <td className="px-4 py-2 font-medium text-slate-900">{it.site}</td>
                           <td className="px-4 py-2 text-red-700">{it.path}</td>
                         </tr>
                       ))}
-                      {delta.gained.length === 0 && (
+                      {((delta.broken_links?.gained?.length || 0) + (delta.urls_404?.gained?.length || 0) === 0) && (
                         <tr><td className="px-4 py-2 text-slate-500" colSpan={2}>Aucune</td></tr>
                       )}
                     </tbody>
@@ -361,13 +367,13 @@ export default function NotFoundPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
-                      {delta.lost.map((it: any, idx: number) => (
+                      {(delta.broken_links?.lost || delta.urls_404?.lost || []).map((it: any, idx: number) => (
                         <tr key={`l-${idx}`} className="hover:bg-slate-50">
                           <td className="px-4 py-2 font-medium text-slate-900">{it.site}</td>
                           <td className="px-4 py-2 text-green-700">{it.path}</td>
                         </tr>
                       ))}
-                      {delta.lost.length === 0 && (
+                      {((delta.broken_links?.lost?.length || 0) + (delta.urls_404?.lost?.length || 0) === 0) && (
                         <tr><td className="px-4 py-2 text-slate-500" colSpan={2}>Aucune</td></tr>
                       )}
                     </tbody>
