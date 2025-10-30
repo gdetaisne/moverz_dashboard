@@ -14,6 +14,8 @@ import {
 } from '../shared/bigquery-tools.js'
 import type { Action, AgentResult } from '../core/types.js'
 import { log } from '../../etl/shared/error-handler.js'
+import { insertAgentInsights } from '../../etl/shared/bigquery-client.js'
+import { ACTIVE_SITES } from '../../etl/shared/config.js'
 
 // ========================================
 // PROMPT
@@ -71,81 +73,114 @@ export async function runTrafficAnalyst(): Promise<AgentResult> {
   log('info', '📊 Starting Traffic Analyst Agent...')
 
   try {
-    // 1. Collecter les données détaillées
-    log('info', 'Fetching detailed traffic data from BigQuery...')
+    const allInsightsToStore: any[] = []
     
-    const [summary, trends, lowCTR, topQueries, topPages] = await Promise.all([
-      getGSCSummary({ startDate: '30 DAY' }),
-      getVisibilityTrends({ startDate: '30 DAY' }),
-      getLowCTRPages({ limit: 20 }),
-      getTopQueries({ limit: 30 }),
-      getTopPages({ limit: 20 }),
-    ])
+    // Analyser chaque site individuellement
+    for (const site of ACTIVE_SITES) {
+      log('info', `Analyzing traffic for ${site}...`)
+      
+      // 1. Collecter les données pour ce site
+      const [summary, trends, lowCTR, topQueries, topPages] = await Promise.all([
+        getGSCSummary({ site, startDate: '30 DAY' }),
+        getVisibilityTrends({ site, startDate: '30 DAY' }),
+        getLowCTRPages({ site, limit: 10 }),
+        getTopQueries({ site, limit: 20 }),
+        getTopPages({ site, limit: 10 }),
+      ])
+      
+      // Si pas de données, on passe
+      if (!summary || summary.length === 0) {
+        log('info', `No data for ${site}, skipping`)
+        continue
+      }
 
-    // 2. Préparer le contexte pour GPT
-    const context = {
-      summary,
-      trends7d: trends.filter((t: any) => {
-        const daysDiff = new Date().getTime() - new Date(t.date).getTime()
-        return daysDiff <= 7 * 24 * 60 * 60 * 1000
-      }),
-      lowCTR: lowCTR.slice(0, 10),
-      topQueries: topQueries.slice(0, 20),
-      topPages: topPages.slice(0, 15),
-    }
+      // 2. Préparer le contexte pour GPT
+      const siteData = summary[0] || {}
+      const context = {
+        site,
+        summary: siteData,
+        trends7d: trends.filter((t: any) => {
+          const daysDiff = new Date().getTime() - new Date(t.date).getTime()
+          return daysDiff <= 7 * 24 * 60 * 60 * 1000
+        }),
+        lowCTR,
+        topQueries: topQueries.slice(0, 10),
+        topPages: topPages.slice(0, 10),
+      }
 
-    const userMessage = `
-Analyse ces données de trafic et identifie les insights importants :
+      const userMessage = `
+Analyse ces données de trafic pour ${site} et génère UN insight synthétique :
 
 ## Vue d'ensemble (30 derniers jours)
-${JSON.stringify(context.summary, null, 2)}
+- Impressions: ${siteData.total_impressions || 0}
+- Clics: ${siteData.total_clicks || 0}
+- CTR moyen: ${(siteData.avg_ctr * 100).toFixed(2)}%
+- Position moyenne: ${siteData.avg_position?.toFixed(1) || 'N/A'}
 
 ## Tendances récentes (7 derniers jours)
-${JSON.stringify(context.trends7d, null, 2)}
+${JSON.stringify(context.trends7d.slice(0, 7), null, 2)}
 
-## Pages à faible CTR (potentiel non exploité)
-${JSON.stringify(context.lowCTR, null, 2)}
+## Pages à faible CTR
+${JSON.stringify(lowCTR.slice(0, 5), null, 2)}
 
-## Top requêtes (30 derniers jours)
-${JSON.stringify(context.topQueries, null, 2)}
+## Top requêtes
+${JSON.stringify(context.topQueries.slice(0, 5), null, 2)}
 
-## Top pages par trafic
-${JSON.stringify(context.topPages, null, 2)}
-
-Propose une analyse détaillée avec insights, tendances, opportunités et alertes.
+Génère UN insight concis (max 200 caractères) sur la performance actuelle et UNE action prioritaire.
+Format: {
+  "title": "Titre court",
+  "summary": "Résumé concis de la performance",
+  "priority": "critical" | "high" | "medium" | "low",
+  "actions": [
+    {"priority": "high", "title": "Action 1", "impact": "Description", "effort": "Faible|Moyen|Élevé"}
+  ]
+}
 `
 
-    // 3. Appeler GPT-4
-    log('info', 'Analyzing with GPT-4...')
-    
-    const result = await chatWithJSON<{
-      insights: any[]
-      summary: string
-      highlights: string[]
-    }>(SYSTEM_PROMPT, userMessage, {
-      model: 'gpt-4-turbo-preview',
-      temperature: 0.7,
-      maxTokens: 4000,
-    })
+      // 3. Appeler GPT-4
+      const result = await chatWithJSON<{
+        title: string
+        summary: string
+        priority: string
+        actions: any[]
+      }>(SYSTEM_PROMPT, userMessage, {
+        model: 'gpt-4',
+        temperature: 0.5,
+        maxTokens: 500,
+      })
 
-    // 4. Post-traiter les résultats
-    const insightsWithIds = result.insights.map((insight, idx) => ({
-      ...insight,
-      id: `traffic-${Date.now()}-${idx}`,
-    }))
+      // 4. Stocker l'insight
+      const insight = {
+        id: `traffic-${site}-${Date.now()}`,
+        runDate: new Date().toISOString().split('T')[0],
+        site,
+        agent: 'traffic',
+        severity: result.priority === 'critical' ? 'critical' as const : 
+                  result.priority === 'high' ? 'warn' as const : 'info' as const,
+        title: result.title,
+        summary: result.summary,
+        payload: {
+          metrics: siteData,
+          trends: context.trends7d.slice(0, 7),
+          lowCTR: lowCTR.slice(0, 3),
+        },
+        suggestedActions: result.actions || [],
+        score: Math.min(1, (siteData.total_clicks || 0) / 100), // Score basé sur les clics
+      }
+      
+      allInsightsToStore.push(insight)
+    }
+    
+    // 5. Écrire tous les insights dans BigQuery
+    if (allInsightsToStore.length > 0) {
+      log('info', `Storing ${allInsightsToStore.length} insights in BigQuery...`)
+      await insertAgentInsights(allInsightsToStore)
+    }
 
     const completedAt = new Date()
     const duration = (completedAt.getTime() - startedAt.getTime()) / 1000
 
-    // Compter les types d'insights
-    const counts = {
-      trends: result.insights.filter(i => i.type === 'trend').length,
-      opportunities: result.insights.filter(i => i.type === 'opportunity').length,
-      alerts: result.insights.filter(i => i.type === 'alert').length,
-      anomalies: result.insights.filter(i => i.type === 'anomaly').length,
-    }
-
-    log('info', `✅ Traffic Analyst completed: ${insightsWithIds.length} insights (${counts.trends} trends, ${counts.opportunities} opportunities, ${counts.alerts} alerts, ${counts.anomalies} anomalies)`)
+    log('info', `✅ Traffic Analyst completed: ${allInsightsToStore.length} insights for ${ACTIVE_SITES.length} sites`)
 
     return {
       agentName: 'traffic-analyst',
@@ -153,11 +188,9 @@ Propose une analyse détaillée avec insights, tendances, opportunités et alert
       duration,
       status: 'success',
       data: {
-        insights: insightsWithIds,
-        summary: result.summary,
-        highlights: result.highlights,
-        counts,
-        context,
+        insights: allInsightsToStore,
+        sitesAnalyzed: ACTIVE_SITES.length,
+        insightsCreated: allInsightsToStore.length,
       },
     }
   } catch (error: any) {
@@ -188,22 +221,18 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     console.log(`  Duration: ${result.duration}s`)
     
     if (result.status === 'success') {
-      console.log(`  Total insights: ${result.data.insights.length}`)
-      console.log(`\n📝 Summary: ${result.data.summary}`)
-      
-      console.log('\n🎯 Highlights:')
-      result.data.highlights.forEach((highlight, idx) => {
-        console.log(`  ${idx + 1}. ${highlight}`)
-      })
+      console.log(`  Sites analyzed: ${result.data.sitesAnalyzed}`)
+      console.log(`  Insights created: ${result.data.insightsCreated}`)
       
       if (result.data.insights.length > 0) {
-        console.log('\n💡 Top Insights:')
-        result.data.insights.slice(0, 5).forEach((insight: any, idx: number) => {
-          console.log(`\n  ${idx + 1}. [${insight.type.toUpperCase()}] ${insight.title}`)
-          console.log(`     Site: ${insight.site}`)
-          console.log(`     Description: ${insight.description}`)
-          if (insight.data) {
-            console.log(`     Données: ${insight.data.current} vs ${insight.data.previous} (${insight.data.change > 0 ? '+' : ''}${insight.data.change}${insight.data.unit})`)
+        console.log('\n💡 Insights per site:')
+        result.data.insights.forEach((insight: any) => {
+          console.log(`\n  🌍 ${insight.site}`)
+          console.log(`     ${insight.title}`)
+          console.log(`     ${insight.summary}`)
+          console.log(`     Priority: ${insight.severity}`)
+          if (insight.suggestedActions && insight.suggestedActions.length > 0) {
+            console.log(`     Actions: ${insight.suggestedActions.length}`)
           }
         })
       }
