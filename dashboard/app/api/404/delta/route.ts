@@ -13,16 +13,23 @@ export async function GET(request: NextRequest) {
     const from = searchParams.get('from') || undefined
     const to = searchParams.get('to') || undefined
 
-    // Priorité: delta sur les liens cassés visibles; fallback: URLs 404
-    const brokenLinksDelta = await getBrokenLinksDelta({ from, to })
-    if (brokenLinksDelta) {
-      return NextResponse.json({ success: true, mode: 'broken_links', data: brokenLinksDelta })
+    // Calculer les deux deltas (liens cassés visibles et URLs 404)
+    const [brokenLinksDelta, urlsDelta] = await Promise.all([
+      getBrokenLinksDelta({ from, to }),
+      getError404Delta({ from, to }),
+    ])
+
+    if (!brokenLinksDelta && !urlsDelta) {
+      return NextResponse.json({ success: false, message: 'Delta indisponible (pas assez de scans)' }, { status: 404 })
     }
-    const urlDelta = await getError404Delta({ from, to })
-    if (urlDelta) {
-      return NextResponse.json({ success: true, mode: 'urls_404', data: urlDelta })
-    }
-    return NextResponse.json({ success: false, message: 'Delta indisponible (pas assez de scans)' }, { status: 404 })
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        broken_links: brokenLinksDelta || null,
+        urls_404: urlsDelta || null,
+      },
+    })
   } catch (error: any) {
     return NextResponse.json({ success: false, message: error.message }, { status: 500 })
   }

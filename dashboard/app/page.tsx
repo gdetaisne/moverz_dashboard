@@ -35,6 +35,8 @@ export default function HomePage() {
   const [timeseriesData, setTimeseriesData] = useState<GSCGlobalMetrics[]>([])
   const [globalInsight, setGlobalInsight] = useState<GlobalInsight | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
+  const [showFullImpr, setShowFullImpr] = useState(false)
+  const [showFullClicks, setShowFullClicks] = useState(false)
   
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -240,15 +242,73 @@ export default function HomePage() {
       {/* Charts par site */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 mb-4">📊 Évolution des Impressions par site</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-800">📊 Évolution des Impressions par site</h2>
+            <button
+              onClick={() => setShowFullImpr(true)}
+              className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-50 text-slate-700"
+            >
+              Plein écran
+            </button>
+          </div>
           <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="impressions" />
         </div>
         
         <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
-          <h2 className="text-lg font-bold text-slate-800 mb-4">👆 Évolution des Clics par site</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-800">👆 Évolution des Clics par site</h2>
+            <button
+              onClick={() => setShowFullClicks(true)}
+              className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-50 text-slate-700"
+            >
+              Plein écran
+            </button>
+          </div>
           <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" />
         </div>
       </div>
+
+      {/* Modal plein écran - Impressions */}
+      {showFullImpr && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white w-[95vw] h-[85vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-bold text-slate-900">📊 Évolution des Impressions par site</h3>
+              <button
+                onClick={() => setShowFullImpr(false)}
+                className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-50 text-slate-700"
+                aria-label="Fermer"
+              >
+                Fermer
+              </button>
+            </div>
+            <div className="flex-1">
+              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="impressions" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal plein écran - Clics */}
+      {showFullClicks && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white w-[95vw] h-[85vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-bold text-slate-900">👆 Évolution des Clics par site</h3>
+              <button
+                onClick={() => setShowFullClicks(false)}
+                className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-50 text-slate-700"
+                aria-label="Fermer"
+              >
+                Fermer
+              </button>
+            </div>
+            <div className="flex-1">
+              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" />
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Sites Table */}
       <div className="bg-white rounded-lg border border-slate-200 shadow-sm">

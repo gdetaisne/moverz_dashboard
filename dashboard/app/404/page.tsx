@@ -448,6 +448,18 @@ export default function NotFoundPage() {
                     const isInProgress = result.status === 'in_progress'
                     const progress = result.progress_percent || 0
                     
+                    // Variations (delta) par site
+                    const getDeltaForSite = (site: string) => {
+                      const dl = delta?.broken_links || delta?.data?.broken_links || delta?.data || null
+                      const du = delta?.urls_404 || delta?.data?.urls_404 || null
+                      const bl = dl?.by_site?.find((s: any) => s.site === site)
+                      const u4 = du?.by_site?.find((s: any) => s.site === site)
+                      return { bl, u4 }
+                    }
+                    const { bl, u4 } = getDeltaForSite(result.site)
+                    const net404 = u4 ? (u4.gained - u4.lost) : 0
+                    const netBL = bl ? (bl.gained - bl.lost) : 0
+
                     return (
                       <tr key={result.site} className="hover:bg-slate-50 transition-colors">
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
@@ -497,16 +509,30 @@ export default function NotFoundPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
-                          <span className={result.errors_404 > 0 ? 'text-orange-600' : 'text-green-600'}>
-                            {result.errors_404}
-                          </span>
+                          <div className="flex items-center gap-2">
+                            <span className={result.errors_404 > 0 ? 'text-orange-600' : 'text-green-600'}>
+                              {result.errors_404}
+                            </span>
+                            {u4 && net404 !== 0 && (
+                              <span className={`text-xs font-semibold ${net404 > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {net404 > 0 ? `+${net404}` : net404}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
-                          {result.broken_links > 0 ? (
-                            <span className="text-red-600">{result.broken_links}</span>
-                          ) : (
-                            <span className="text-slate-400">{/* pas d'affichage du 0 */}</span>
-                          )}
+                          <div className="flex items-center gap-2">
+                            {result.broken_links > 0 ? (
+                              <span className="text-red-600">{result.broken_links}</span>
+                            ) : (
+                              <span className="text-slate-400">{/* vide si 0 */}</span>
+                            )}
+                            {bl && netBL !== 0 && (
+                              <span className={`text-xs font-semibold ${netBL > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {netBL > 0 ? `+${netBL}` : netBL}
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {errorRate}%
