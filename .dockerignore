@@ -25,6 +25,8 @@ dashboard/.vercel/
 # Credentials (CRITICAL: ne JAMAIS inclure dans l'image)
 credentials/
 *.json
+# Autoriser la stratégie business du chatbot
+!dashboard/data/strategy.json
 sa-key.json
 service-account*.json
 
@@ -38,6 +40,8 @@ service-account*.json
 # Docs
 *.md
 !README.md
+# Autoriser la stratégie business du chatbot
+!dashboard/data/strategy.md
 docs/
 
 # Tests
