@@ -1,0 +1,10 @@
+{
+  "project": "Moverz",
+  "version": "2025-10-30",
+  "language": "fr-FR",
+  "kpis": ["impressions", "clicks", "ctr", "position"],
+  "notes": {
+    "bpi": "Renseigner montants/échéances si applicable"
+  }
+}
+
