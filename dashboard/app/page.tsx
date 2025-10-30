@@ -6,9 +6,25 @@ import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
 import { GroupedDataTable } from '@/components/GroupedDataTable'
 import { PeriodSelector } from '@/components/PeriodSelector'
+import { InsightCard } from '@/components/InsightCard'
 import ChatBot from '@/components/ChatBot'
 import { formatNumber, formatPercent, formatPosition } from '@/lib/utils'
 import type { SiteMetrics, GSCGlobalMetrics } from '@/lib/bigquery'
+
+interface GlobalInsight {
+  id?: string
+  run_date?: string
+  site: string
+  agent: string
+  severity: 'info' | 'warn' | 'critical'
+  title: string
+  summary: string
+  score?: number
+  created_at: string
+  payload?: any
+  evidence?: any
+  suggested_actions?: any[]
+}
 
 export default function HomePage() {
   const [period, setPeriod] = useState(7)
@@ -16,21 +32,27 @@ export default function HomePage() {
   const [etlLoading, setEtlLoading] = useState(false)
   const [globalData, setGlobalData] = useState<SiteMetrics[]>([])
   const [timeseriesData, setTimeseriesData] = useState<GSCGlobalMetrics[]>([])
+  const [globalInsight, setGlobalInsight] = useState<GlobalInsight | null>(null)
   const [chatOpen, setChatOpen] = useState(false)
   
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [globalRes, timeseriesRes] = await Promise.all([
+      const [globalRes, timeseriesRes, insightRes] = await Promise.all([
         fetch(`/api/metrics/global?days=${period}`),
         fetch(`/api/metrics/timeseries?days=30`),
+        fetch(`/api/insights?site=${encodeURIComponent('*global*')}&agent=report`),
       ])
       
       const globalJson = await globalRes.json()
       const timeseriesJson = await timeseriesRes.json()
+      const insightJson = await insightRes.json()
       
       if (globalJson.success) setGlobalData(globalJson.data)
       if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)
+      if (insightJson.insights && insightJson.insights.length > 0) {
+        setGlobalInsight(insightJson.insights[0])
+      }
     } catch (error) {
       console.error('Failed to fetch data:', error)
     } finally {
@@ -159,6 +181,13 @@ export default function HomePage() {
           <PeriodSelector value={period} onChange={setPeriod} />
         </div>
       </div>
+      
+      {/* Insight Global */}
+      {globalInsight && (
+        <div className="mb-6">
+          <InsightCard insight={globalInsight} showSite={false} />
+        </div>
+      )}
       
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
