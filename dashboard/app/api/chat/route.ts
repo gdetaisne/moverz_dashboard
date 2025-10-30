@@ -3,7 +3,6 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 import { bigquery } from '@/lib/bigquery'
 
 // Helper function pour exécuter des requêtes
@@ -14,14 +13,8 @@ async function query(sql: string): Promise<any[]> {
 
 export const dynamic = 'force-dynamic'
 
-// Initialiser OpenAI
-const openai = process.env.OPENAI_API_KEY 
-  ? new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-  : null
-
-if (!process.env.OPENAI_API_KEY) {
-  console.warn('⚠️ OPENAI_API_KEY not found - Chat will be disabled')
-}
+// OpenAI sera initialisé de manière lazy dans la fonction POST
+// pour éviter les erreurs au build time
 
 // ========================================
 // PROMPT SYSTÈME
@@ -73,13 +66,17 @@ SQL: "SELECT domain, SUM(impressions) as imp, SUM(clicks) as clics FROM \`moverz
 
 export async function POST(request: NextRequest) {
   try {
-    // Vérifier OpenAI
-    if (!openai) {
+    // Vérifier et initialiser OpenAI (lazy, uniquement au runtime)
+    if (!process.env.OPENAI_API_KEY) {
       return NextResponse.json(
         { success: false, error: 'OpenAI API key not configured' },
         { status: 503 }
       )
     }
+
+    // Import dynamique d'OpenAI uniquement au runtime (évite erreur au build)
+    const { default: OpenAI } = await import('openai')
+    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     const body = await request.json()
     const { message, context } = body
