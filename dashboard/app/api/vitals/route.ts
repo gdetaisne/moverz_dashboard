@@ -7,7 +7,7 @@ const DOMAIN_TO_CITY: Record<string, string> = {
   'devis-demenageur-marseille.fr': 'marseille',
   'devis-demenageur-toulousain.fr': 'toulouse',
   'devis-demenageur-lyon.fr': 'lyon',
-  'bordeaux-demenageur.fr': 'bordeaux',
+  'www.bordeaux-demenageur.fr': 'bordeaux',
   'devis-demenageur-nantes.fr': 'nantes',
   'devis-demenageur-lille.fr': 'lille',
   'devis-demenageur-nice.fr': 'nice',
@@ -27,11 +27,18 @@ function getSitesFromEnv() {
     domains.push(...Object.keys(DOMAIN_TO_CITY))
   }
   
-  return domains.map((domain, idx) => ({
-    id: String(idx + 1),
-    domain,
-    city: DOMAIN_TO_CITY[domain] || domain.split('.')[0].replace('devis-demenageur-', '').replace('bordeaux-demenageur', 'bordeaux'),
-  }))
+  return domains.map((domain, idx) => {
+    // Normaliser les domaines : si bordeaux-demenageur.fr est dans SITES_LIST, le convertir en www.bordeaux-demenageur.fr
+    const normalizedDomain = domain === 'bordeaux-demenageur.fr' 
+      ? 'www.bordeaux-demenageur.fr'
+      : domain
+    
+    return {
+      id: String(idx + 1),
+      domain: normalizedDomain,
+      city: DOMAIN_TO_CITY[normalizedDomain] || domain.split('.')[0].replace('devis-demenageur-', '').replace('bordeaux-demenageur', 'bordeaux').replace('www.', ''),
+    }
+  })
 }
 
 // Mapping domaine -> repo GitHub (pattern: gdetaisne/dd-{ville})
@@ -39,7 +46,7 @@ const DOMAIN_TO_REPO: Record<string, string> = {
   'devis-demenageur-marseille.fr': 'gdetaisne/dd-marseille',
   'devis-demenageur-toulousain.fr': 'gdetaisne/dd-toulouse',
   'devis-demenageur-lyon.fr': 'gdetaisne/dd-lyon',
-  'bordeaux-demenageur.fr': 'gdetaisne/dd-bordeaux',
+  'www.bordeaux-demenageur.fr': 'gdetaisne/dd-bordeaux',
   'devis-demenageur-nantes.fr': 'gdetaisne/dd-nantes',
   'devis-demenageur-lille.fr': 'gdetaisne/dd-lille',
   'devis-demenageur-nice.fr': 'gdetaisne/dd-nice',
