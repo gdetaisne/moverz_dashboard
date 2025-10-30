@@ -218,6 +218,141 @@ export async function getVisibilityTrends(context: BigQueryContext = {}) {
   return query(sql)
 }
 
+export async function getTrafficComparison(context: BigQueryContext = {}) {
+  const {
+    site,
+    startDate = '30 DAY',
+  } = context
+
+  const siteFilter = site ? `AND site = '${site}'` : ''
+
+  const sql = `
+    WITH periods AS (
+      SELECT 
+        site,
+        CASE 
+          WHEN date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) THEN 'last_7d'
+          WHEN date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) THEN 'prev_7d'
+          ELSE 'older'
+        END as period
+      FROM \`moverz.gsc_global\`
+      WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
+        ${siteFilter}
+    )
+    SELECT 
+      site,
+      period,
+      COUNT(*) as days,
+      SUM(impressions) as total_impressions,
+      SUM(clicks) as total_clicks,
+      AVG(ctr) as avg_ctr,
+      AVG(position) as avg_position
+    FROM \`moverz.gsc_global\`
+    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
+      ${siteFilter}
+    GROUP BY site, period
+    HAVING period IN ('last_7d', 'prev_7d')
+    ORDER BY site, period
+  `
+
+  return query(sql)
+}
+
+// ========================================
+// REQUÊTES CONTENT GAPS
+// ========================================
+
+export async function getContentGaps(context: BigQueryContext = {}) {
+  const {
+    site,
+    limit = 20,
+    startDate = '30 DAY',
+  } = context
+
+  const siteFilter = site ? `AND site = '${site}'` : ''
+
+  const sql = `
+    SELECT 
+      site,
+      query,
+      SUM(impressions) as total_impressions,
+      AVG(position) as avg_position
+    FROM \`moverz.gsc_queries\`
+    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
+      ${siteFilter}
+      AND position > 10
+      AND impressions > 50
+    GROUP BY site, query
+    ORDER BY total_impressions DESC
+    LIMIT ${limit}
+  `
+
+  return query(sql)
+}
+
+export async function getUnderperformingContent(context: BigQueryContext = {}) {
+  const {
+    site,
+    limit = 15,
+    startDate = '30 DAY',
+  } = context
+
+  const siteFilter = site ? `AND site = '${site}'` : ''
+
+  const sql = `
+    SELECT 
+      site,
+      url,
+      SUM(impressions) as total_impressions,
+      SUM(clicks) as total_clicks,
+      AVG(ctr) as avg_ctr,
+      AVG(position) as avg_position
+    FROM \`moverz.gsc_pages\`
+    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
+      ${siteFilter}
+      AND impressions > 100
+    GROUP BY site, url
+    HAVING avg_ctr < 0.015 OR avg_position > 20
+    ORDER BY total_impressions DESC
+    LIMIT ${limit}
+  `
+
+  return query(sql)
+}
+
+// ========================================
+// REQUÊTES CONVERSIONS & WEB VITALS
+// ========================================
+
+export async function getWebVitalsPerformance(context: BigQueryContext = {}) {
+  const {
+    site,
+    startDate = '30 DAY',
+  } = context
+
+  const siteFilter = site ? `AND site = '${site}'` : ''
+
+  const sql = `
+    SELECT 
+      site,
+      AVG(lcp) as avg_lcp,
+      AVG(fid) as avg_fid,
+      AVG(cls) as avg_cls,
+      COUNT(*) as sample_size
+    FROM \`moverz.web_vitals\`
+    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
+      ${siteFilter}
+    GROUP BY site
+    ORDER BY avg_lcp DESC
+  `
+
+  try {
+    return await query(sql)
+  } catch {
+    return []
+  }
+}
+
 // ========================================
 // EXPORTS
 // ========================================
@@ -229,6 +364,10 @@ export const bigqueryTools = {
   getTopQueries,
   getConversionFunnel,
   getVisibilityTrends,
+  getTrafficComparison,
+  getContentGaps,
+  getUnderperformingContent,
+  getWebVitalsPerformance,
 }
 
 export default bigqueryTools

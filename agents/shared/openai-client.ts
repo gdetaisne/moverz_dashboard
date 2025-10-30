@@ -6,13 +6,13 @@ import OpenAI from 'openai'
 
 const apiKey = process.env.OPENAI_API_KEY
 
-if (!apiKey) {
-  console.warn('⚠️  OPENAI_API_KEY not found - Agents will fail')
-}
+// Créer le client OpenAI uniquement si la clé est présente
+export const openai = apiKey ? new OpenAI({ apiKey }) : null
 
-export const openai = new OpenAI({
-  apiKey,
-})
+if (!apiKey) {
+  console.warn('⚠️  OPENAI_API_KEY not found - Agents will run in mock mode')
+  console.warn('💡 To enable AI agents, add OPENAI_API_KEY to your environment variables')
+}
 
 // ========================================
 // HELPERS
@@ -27,6 +27,10 @@ export async function chat(
     maxTokens?: number
   } = {}
 ): Promise<string> {
+  if (!openai) {
+    throw new Error('OpenAI API key not configured. Please set OPENAI_API_KEY environment variable.')
+  }
+
   const {
     model = process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
     temperature = 0.7,

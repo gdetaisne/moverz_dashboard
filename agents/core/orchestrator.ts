@@ -3,6 +3,8 @@
  */
 
 import { runSEOOptimizer } from '../seo-optimizer/agent.js'
+import { runContentStrategist } from '../content-strategist/agent.js'
+import { runTrafficAnalyst } from '../traffic-analyst/agent.js'
 import { log } from '../../etl/shared/error-handler.js'
 import type { AgentResult } from './types.js'
 
@@ -12,12 +14,21 @@ import type { AgentResult } from './types.js'
 
 const AGENTS = [
   {
+    name: 'Traffic Analyst',
+    fn: runTrafficAnalyst,
+    schedule: 'daily', // Lancer après mise à jour ETL
+  },
+  {
     name: 'SEO Optimizer',
     fn: runSEOOptimizer,
-    schedule: 'daily', // daily, weekly, hourly
+    schedule: 'daily',
+  },
+  {
+    name: 'Content Strategist',
+    fn: runContentStrategist,
+    schedule: 'weekly',
   },
   // TODO: Ajouter autres agents
-  // { name: 'Content Strategist', fn: runContentStrategist, schedule: 'weekly' },
   // { name: 'CRO Optimizer', fn: runCROOptimizer, schedule: 'weekly' },
   // { name: 'Report Generator', fn: runReportGenerator, schedule: 'weekly' },
   // { name: 'Alerts Manager', fn: runAlertsManager, schedule: 'hourly' },
