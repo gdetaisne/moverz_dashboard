@@ -20,15 +20,15 @@ export async function getGSCSummary(context: BigQueryContext = {}) {
 
   const sql = `
     SELECT 
-      site,
+      domain as site,
       SUM(impressions) as total_impressions,
       SUM(clicks) as total_clicks,
       AVG(ctr) as avg_ctr,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_global\`
+    FROM \`analytics_core.gsc_daily_aggregated\`
     WHERE date >= DATE_SUB(${endDate}, INTERVAL ${startDate})
-      ${siteFilter}
-    GROUP BY site
+      ${siteFilter.replace('site', 'domain')}
+    GROUP BY domain
     ORDER BY total_clicks DESC
   `
 
@@ -46,16 +46,16 @@ export async function getTopPages(context: BigQueryContext = {}) {
 
   const sql = `
     SELECT 
-      site,
-      url,
+      domain as site,
+      page as url,
       SUM(impressions) as total_impressions,
       SUM(clicks) as total_clicks,
       AVG(ctr) as avg_ctr,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_pages\`
+    FROM \`analytics_core.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-      ${siteFilter}
-    GROUP BY site, url
+      ${siteFilter.replace('site', 'domain')}
+    GROUP BY domain, page
     ORDER BY total_clicks DESC
     LIMIT ${limit}
   `
@@ -74,17 +74,17 @@ export async function getLowCTRPages(context: BigQueryContext = {}) {
 
   const sql = `
     SELECT 
-      site,
-      url,
+      domain as site,
+      page as url,
       SUM(impressions) as total_impressions,
       SUM(clicks) as total_clicks,
       AVG(ctr) as avg_ctr,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_pages\`
+    FROM \`analytics_core.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-      ${siteFilter}
+      ${siteFilter.replace('site', 'domain')}
       AND impressions > 100
-    GROUP BY site, url
+    GROUP BY domain, page
     HAVING avg_ctr < 0.02
     ORDER BY total_impressions DESC
     LIMIT ${limit}
@@ -104,16 +104,16 @@ export async function getTopQueries(context: BigQueryContext = {}) {
 
   const sql = `
     SELECT 
-      site,
+      domain as site,
       query,
       SUM(impressions) as total_impressions,
       SUM(clicks) as total_clicks,
       AVG(ctr) as avg_ctr,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_queries\`
+    FROM \`analytics_core.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-      ${siteFilter}
-    GROUP BY site, query
+      ${siteFilter.replace('site', 'domain')}
+    GROUP BY domain, query
     ORDER BY total_impressions DESC
     LIMIT ${limit}
   `
@@ -184,15 +184,15 @@ export async function getVisibilityTrends(context: BigQueryContext = {}) {
   const sql = `
     WITH daily AS (
       SELECT 
-        site,
+        domain as site,
         date,
         SUM(impressions) as impressions,
         SUM(clicks) as clicks
-      FROM \`moverz.gsc_global\`
+      FROM \`analytics_core.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-        ${siteFilter}
-      GROUP BY site, date
-      ORDER BY site, date
+        ${siteFilter.replace('site', 'domain')}
+      GROUP BY domain, date
+      ORDER BY domain, date
     ),
     with_prev AS (
       SELECT 
@@ -229,15 +229,19 @@ export async function getTrafficComparison(context: BigQueryContext = {}) {
   const sql = `
     WITH periods AS (
       SELECT 
-        site,
+        domain as site,
         CASE 
           WHEN date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) THEN 'last_7d'
           WHEN date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) THEN 'prev_7d'
           ELSE 'older'
-        END as period
-      FROM \`moverz.gsc_global\`
+        END as period,
+        impressions,
+        clicks,
+        ctr,
+        position
+      FROM \`analytics_core.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-        ${siteFilter}
+        ${siteFilter.replace('site', 'domain')}
     )
     SELECT 
       site,
@@ -247,11 +251,9 @@ export async function getTrafficComparison(context: BigQueryContext = {}) {
       SUM(clicks) as total_clicks,
       AVG(ctr) as avg_ctr,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_global\`
-    WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-      ${siteFilter}
+    FROM periods
+    WHERE period IN ('last_7d', 'prev_7d')
     GROUP BY site, period
-    HAVING period IN ('last_7d', 'prev_7d')
     ORDER BY site, period
   `
 
@@ -273,16 +275,16 @@ export async function getContentGaps(context: BigQueryContext = {}) {
 
   const sql = `
     SELECT 
-      site,
+      domain as site,
       query,
       SUM(impressions) as total_impressions,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_queries\`
+    FROM \`analytics_core.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-      ${siteFilter}
+      ${siteFilter.replace('site', 'domain')}
       AND position > 10
       AND impressions > 50
-    GROUP BY site, query
+    GROUP BY domain, query
     ORDER BY total_impressions DESC
     LIMIT ${limit}
   `
@@ -301,17 +303,17 @@ export async function getUnderperformingContent(context: BigQueryContext = {}) {
 
   const sql = `
     SELECT 
-      site,
-      url,
+      domain as site,
+      page as url,
       SUM(impressions) as total_impressions,
       SUM(clicks) as total_clicks,
       AVG(ctr) as avg_ctr,
       AVG(position) as avg_position
-    FROM \`moverz.gsc_pages\`
+    FROM \`analytics_core.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
-      ${siteFilter}
+      ${siteFilter.replace('site', 'domain')}
       AND impressions > 100
-    GROUP BY site, url
+    GROUP BY domain, page
     HAVING avg_ctr < 0.015 OR avg_position > 20
     ORDER BY total_impressions DESC
     LIMIT ${limit}
@@ -339,7 +341,7 @@ export async function getWebVitalsPerformance(context: BigQueryContext = {}) {
       AVG(fid) as avg_fid,
       AVG(cls) as avg_cls,
       COUNT(*) as sample_size
-    FROM \`moverz.web_vitals\`
+    FROM \`analytics_core.web_vitals\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${startDate})
       ${siteFilter}
     GROUP BY site

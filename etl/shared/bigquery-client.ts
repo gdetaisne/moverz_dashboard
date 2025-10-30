@@ -8,6 +8,7 @@ import type { ETLJobResult } from './types.js'
 // Configuration
 const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
 const dataset = process.env.BQ_DATASET || 'analytics_core'
+const location = process.env.BQ_LOCATION || 'europe-west1'
 
 // Initialiser le client
 export const bigquery = new BigQuery({
@@ -85,7 +86,7 @@ export async function insertRowsSafe<T extends Record<string, any>>(
  */
 export async function query<T = any>(sql: string): Promise<T[]> {
   try {
-    const [rows] = await bigquery.query({ query: sql })
+    const [rows] = await bigquery.query({ query: sql, location })
     return rows as T[]
   } catch (error: any) {
     console.error('[BigQuery] ❌ Erreur query:', error.message)
@@ -183,6 +184,120 @@ export async function logETLJob(result: ETLJobResult): Promise<void> {
     errors: result.errors.join('; '),
     duration_seconds: (result.completedAt.getTime() - result.startedAt.getTime()) / 1000,
   }])
+}
+
+// ========================================
+// HELPERS AGENTS IA
+// ========================================
+
+/**
+ * Logger un run d'agent IA
+ */
+export async function logAgentRun(result: {
+  id: string
+  agentName: string
+  executedAt: Date
+  duration: number
+  status: 'success' | 'failed'
+  site?: string
+  data: any
+  error?: string
+}): Promise<void> {
+  await insertRows('agent_runs', [{
+    id: result.id,
+    agent_name: result.agentName,
+    executed_at: result.executedAt.toISOString(),
+    duration_seconds: result.duration,
+    status: result.status,
+    site: result.site || null,
+    data: JSON.stringify(result.data),
+    error: result.error || null,
+  }])
+}
+
+/**
+ * Insérer des insights d'agent
+ */
+export async function insertAgentInsights(insights: Array<{
+  id: string
+  runDate: string // YYYY-MM-DD
+  site: string
+  agent: string
+  severity: 'info' | 'warn' | 'critical'
+  title: string
+  summary: string
+  payload: any
+  evidence?: any
+  suggestedActions?: any[]
+  score?: number
+}>): Promise<void> {
+  if (insights.length === 0) return
+
+  const rows = insights.map(insight => ({
+    id: insight.id,
+    run_date: insight.runDate,
+    site: insight.site,
+    agent: insight.agent,
+    severity: insight.severity,
+    title: insight.title,
+    summary: insight.summary,
+    payload: JSON.stringify(insight.payload),
+    evidence: insight.evidence ? JSON.stringify(insight.evidence) : null,
+    suggested_actions: insight.suggestedActions ? JSON.stringify(insight.suggestedActions) : null,
+    score: insight.score || 0,
+    created_at: new Date().toISOString(),
+  }))
+
+  await insertRows('agent_insights', rows)
+}
+
+/**
+ * Récupérer les derniers insights par agent/site
+ */
+export async function getLatestInsights(filters: {
+  agent?: string
+  site?: string
+  severity?: string
+  days?: number
+  limit?: number
+} = {}): Promise<any[]> {
+  const {
+    agent,
+    site,
+    severity,
+    days = 30,
+    limit = 50,
+  } = filters
+
+  const conditions: string[] = [
+    `run_date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)`
+  ]
+
+  if (agent) conditions.push(`agent = '${agent}'`)
+  if (site) conditions.push(`site = '${site}'`)
+  if (severity) conditions.push(`severity = '${severity}'`)
+
+  const sql = `
+    SELECT 
+      id,
+      run_date,
+      site,
+      agent,
+      severity,
+      title,
+      summary,
+      payload,
+      evidence,
+      suggested_actions,
+      score,
+      created_at
+    FROM \`${projectId}.${dataset}.agent_insights\`
+    WHERE ${conditions.join(' AND ')}
+    ORDER BY run_date DESC, score DESC
+    LIMIT ${limit}
+  `
+
+  return query(sql)
 }
 
 // ========================================

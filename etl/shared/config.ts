@@ -8,6 +8,7 @@
 
 export const GCP_PROJECT_ID = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
 export const BQ_DATASET = process.env.BQ_DATASET || 'analytics_core'
+export const BQ_LOCATION = process.env.BQ_LOCATION || 'europe-west1'
 export const BQ_TABLE_NAME = process.env.BQ_TABLE_NAME || 'gsc_daily_aggregated' // Nouvelle table (v2)
 export const GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS
 
