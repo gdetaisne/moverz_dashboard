@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import OpenAI from 'openai'
 
 /**
  * POST /api/404/analyze
@@ -109,6 +108,9 @@ export async function POST(request: NextRequest) {
         { status: 500 }
       )
     }
+    
+    // Import dynamique d'OpenAI uniquement au runtime (évite erreur au build)
+    const { default: OpenAI } = await import('openai')
     
     // Instanciation lazy d'OpenAI (seulement au runtime, pas au build)
     const openai = new OpenAI({

@@ -12,10 +12,10 @@ export default function Icon() {
   // L'animation sera gérée par un composant client qui change le favicon
   const centerX = 16
   const centerY = 16
-  const size = 10
+  const triangleSize = 10
   
   // Triangle équilatéral (angle 0 = pointe vers le haut)
-  const pathData = `M ${centerX},${centerY - size} L ${centerX - size * 0.866},${centerY + size * 0.5} L ${centerX + size * 0.866},${centerY + size * 0.5} Z`
+  const pathData = `M ${centerX},${centerY - triangleSize} L ${centerX - triangleSize * 0.866},${centerY + triangleSize * 0.5} L ${centerX + triangleSize * 0.866},${centerY + triangleSize * 0.5} Z`
   
   return new ImageResponse(
     (
@@ -61,7 +61,8 @@ export default function Icon() {
       </div>
     ),
     {
-      ...size,
+      width: size.width,
+      height: size.height,
     }
   )
 }
