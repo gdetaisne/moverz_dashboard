@@ -93,6 +93,7 @@ export default function NotFoundPage() {
               errors_404: data.errors_404 || 0,
               broken_links: data.broken_links || 0,
               errors_list: data.errors_list || [],
+              broken_links_list: data.broken_links_list || [],
               progress_percent: data.progress_percent || 0,
               status: data.status || 'in_progress',
               }

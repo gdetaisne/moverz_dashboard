@@ -119,7 +119,7 @@ async function crawlSite(
               return
             }
             
-            // Check if this link points to a broken page
+            // Check if we already know this page is broken
             const targetPath = absoluteUrl.pathname
             if (brokenPages.has(targetPath)) {
               brokenLinks.add(url) // Track the source page that has the broken link
@@ -128,9 +128,14 @@ async function crawlSite(
                 source: url,
                 target: absoluteUrl.toString()
               })
+              return // Don't add to visit queue if we know it's broken
             }
             
-            if (!visited.has(cleanUrl) && !toVisit.includes(cleanUrl)) {
+            // Check if this URL was already visited and was broken
+            // (We check visited set before adding 404s to brokenPages, so we need to track separately)
+            
+            // Only add to visit queue if not visited and not broken
+            if (!visited.has(cleanUrl) && !toVisit.includes(cleanUrl) && !brokenPages.has(cleanUrl)) {
               toVisit.push(cleanUrl)
             }
           }
