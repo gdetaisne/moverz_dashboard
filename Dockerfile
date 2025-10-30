@@ -72,6 +72,8 @@ COPY tsconfig.json ./
 COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/.next/standalone ./dashboard
 COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/.next/static ./dashboard/.next/static
 COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/public ./dashboard/public
+# Stratégie business (source de vérité) embarquée pour le chatbot
+COPY --from=dashboard-builder --chown=nodejs:nodejs /app/dashboard/data ./dashboard/data
 
 # Le dossier .next/standalone contient déjà node_modules optimisés
 # On n'a plus besoin de copier tout dashboard/node_modules
