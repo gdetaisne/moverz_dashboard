@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <defs>
+    <style>
+      <![CDATA[
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        .rotating {
+          animation: rotate 3s linear infinite;
+          transform-origin: 16px 16px;
+        }
+      ]]>
+    </style>
+  </defs>
+  <!-- Triangle orange avec bordure -->
+  <path 
+    d="M 16 4 L 28 26 L 4 26 Z" 
+    fill="white" 
+    stroke="#f97316"
+    stroke-width="2.5"
+    class="rotating"
+  />
+  <!-- Point d'exclamation orange -->
+  <path 
+    d="M 16 10 L 16 18 M 16 20 L 16 22" 
+    stroke="#f97316" 
+    stroke-width="2.5" 
+    stroke-linecap="round"
+  />
+  <!-- Point d'exclamation - cercle -->
+  <circle 
+    cx="16" 
+    cy="21" 
+    r="1" 
+    fill="#f97316"
+  />
+</svg>
