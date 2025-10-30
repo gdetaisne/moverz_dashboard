@@ -280,19 +280,27 @@ export default function SitePage() {
                   Analyses et recommandations générées par les agents IA pour ce site.
                 </p>
                 <div className="space-y-4">
-                  {data.insights.map((insight, idx) => (
-                    <InsightCard 
-                      key={idx} 
-                      insight={{
-                        ...insight,
-                        id: `${domain}-${idx}`,
-                        site: insight.site || domain,
-                        agent: insight.agent || 'report-generator',
-                        run_date: new Date(insight.created_at).toISOString().split('T')[0]
-                      }} 
-                      showSite={false}
-                    />
-                  ))}
+                  {data.insights.map((insight, idx) => {
+                    // Normaliser severity pour correspondre au type attendu
+                    const normalizedSeverity = (insight.severity === 'critical' || insight.severity === 'warn' || insight.severity === 'info')
+                      ? insight.severity
+                      : 'info' as 'critical' | 'warn' | 'info'
+                    
+                    return (
+                      <InsightCard 
+                        key={idx} 
+                        insight={{
+                          ...insight,
+                          id: `${domain}-${idx}`,
+                          site: insight.site || domain,
+                          agent: insight.agent || 'report-generator',
+                          severity: normalizedSeverity,
+                          run_date: new Date(insight.created_at).toISOString().split('T')[0]
+                        }} 
+                        showSite={false}
+                      />
+                    )
+                  })}
                 </div>
               </div>
             )}
