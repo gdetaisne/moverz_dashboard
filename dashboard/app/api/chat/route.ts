@@ -28,36 +28,40 @@ if (!process.env.OPENAI_API_KEY) {
 // ========================================
 
 const SYSTEM_PROMPT = `
-Tu es un assistant analytique expert pour Moverz, réseau de 11 sites de déménagement par ville en France.
+Tu es un expert SQL pour BigQuery analysant les données Google Search Console de Moverz.
 
-Rôle: Analyser les données de trafic organique (impressions, clics, CTR, position) depuis Google Search Console.
+BASE DE DONNÉES:
+- Table: \`moverz.gsc_global\`
+- Colonnes: site (STRING), date (DATE), impressions (INT64), clicks (INT64), ctr (FLOAT64), position (FLOAT64)
 
-Tables disponibles dans BigQuery:
-- \`moverz.gsc_global\`: Métriques quotidiennes par site (impressions, clics, CTR, position)
-- \`moverz.gsc_pages\`: Performance par page
-- \`moverz.gsc_queries\`: Performance par requête/keyword
-- \`moverz.web_vitals\`: Métriques de performance (LCP, CLS, INP)
+SITES: marseille, toulouse, lyon, bordeaux, nantes, lille, nice, strasbourg, rouen, rennes, montpellier
 
-Sites disponibles (11 villes):
-- marseille, toulouse, lyon, bordeaux, nantes, lille, nice, strasbourg, rouen, rennes, montpellier
-
-TON ROLE:
-1. Comprendre les questions de l'utilisateur sur les données
-2. Générer une requête SQL BigQuery appropriée
-3. Analyser les résultats
-4. Fournir une réponse claire et actionnable
-
-RÈGLES:
-- Réponds UNIQUEMENT en JSON avec cette structure:
+TÂCHE:
+Génère UNIQUEMENT du JSON valide (pas de texte supplémentaire) avec cette structure exacte:
 {
-  "sql": "SELECT ... FROM moverz.gsc_global WHERE ...",
-  "explanation": "Cette requête permet de...",
-  "suggestions": ["Idée 1", "Idée 2"]
+  "sql": "SELECT site, date, impressions, clicks, ctr, position FROM \`moverz.gsc_global\` WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) LIMIT 100",
+  "explanation": "Cette requête...",
+  "suggestions": []
 }
 
-- Les requêtes doivent être optimisées (LIMIT, WHERE date >= DATE_SUB(...))
-- Focus sur les 30 derniers jours par défaut
-- Utilise les colonnes: site, date, impressions, clicks, ctr, position
+RÈGLES CRITIQUES:
+1. Toujours retourner du JSON valide
+2. Le champ "sql" est OBLIGATOIRE
+3. Utilise toujours WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL X DAY) pour filtrer par date
+4. LIMIT à 100 max
+5. Groupe par site et date quand pertinent
+6. Utilise les noms de colonnes exacts: site, date, impressions, clicks, ctr, position
+
+EXEMPLES DE BONNES REQUÊTES:
+
+Question: "Quels sites ont le plus d'impressions ?"
+SQL: "SELECT site, SUM(impressions) as total_impressions FROM \`moverz.gsc_global\` WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) GROUP BY site ORDER BY total_impressions DESC LIMIT 10"
+
+Question: "Evolution du trafic à Toulouse ?"
+SQL: "SELECT date, SUM(clicks) as clicks FROM \`moverz.gsc_global\` WHERE site = 'toulouse' AND date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY) GROUP BY date ORDER BY date"
+
+Question: "Comparer les sites cette semaine ?"
+SQL: "SELECT site, SUM(impressions) as imp, SUM(clicks) as clics FROM \`moverz.gsc_global\` WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) GROUP BY site ORDER BY imp DESC"
 `
 
 // ========================================
@@ -87,46 +91,55 @@ export async function POST(request: NextRequest) {
     // 1. Appeler GPT pour générer la requête SQL
     console.log('🤖 Asking GPT for SQL query...')
     
-    const chatResponse = await openai.chat.completions.create({
-      model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: message },
-      ],
-      temperature: 0.3,
-      max_tokens: 1000,
-      response_format: { type: 'json_object' },
-    })
-
-    const gptResult = JSON.parse(chatResponse.choices[0]?.message?.content || '{}')
-    const sql = gptResult.sql
-
-    if (!sql) {
-      return NextResponse.json({
-        success: false,
-        error: 'No SQL query generated',
-        explanation: gptResult.explanation,
-      })
-    }
-
-    console.log('📊 Generated SQL:', sql)
-
-    // 2. Exécuter la requête BigQuery
-    let data = []
-    let error = null
-
     try {
-      data = await query(sql)
-      console.log(`✅ Query executed: ${data.length} rows returned`)
-    } catch (queryError: any) {
-      console.error('❌ Query error:', queryError.message)
-      error = queryError.message
-    }
+      const chatResponse = await openai.chat.completions.create({
+        model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
+        messages: [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: message },
+        ],
+        temperature: 0.1, // Plus bas pour plus de cohérence
+        max_tokens: 800,
+        response_format: { type: 'json_object' },
+      })
 
-    // 3. Analyser les résultats avec GPT
-    let analysis = null
-    
-    if (!error && data.length > 0) {
+      const content = chatResponse.choices[0]?.message?.content
+      console.log('GPT Response:', content)
+
+      if (!content) {
+        throw new Error('Empty response from GPT')
+      }
+
+      const gptResult = JSON.parse(content)
+      const sql = gptResult.sql
+
+      if (!sql) {
+        console.error('No SQL in response:', gptResult)
+        return NextResponse.json({
+          success: false,
+          error: 'No SQL query generated',
+          gptResponse: gptResult,
+        })
+      }
+
+      console.log('📊 Generated SQL:', sql)
+
+      // 2. Exécuter la requête BigQuery
+      let data = []
+      let error = null
+
+      try {
+        data = await query(sql)
+          console.log(`✅ Query executed: ${data.length} rows returned`)
+      } catch (queryError: any) {
+        console.error('❌ Query error:', queryError.message)
+        error = queryError.message
+      }
+
+      // 3. Analyser les résultats avec GPT
+      let analysis = null
+      
+      if (!error && data.length > 0) {
       console.log('🧠 Analyzing results with GPT...')
       
       const analysisPrompt = `
@@ -186,10 +199,10 @@ Exemple de mauvaise réponse:
       analysis = `❌ Erreur lors de l'exécution de la requête: ${error}\n\nJe ne peux pas analyser les données car la requête a échoué.`
     } else {
       analysis = `Aucune donnée trouvée pour votre question.\n\nEssayez de reformuler votre question ou d'utiliser des critères différents.`
-    }
+      }
 
-    // 4. Retourner la réponse
-    return NextResponse.json({
+      // 4. Retourner la réponse
+      return NextResponse.json({
       success: true,
       data: {
         sql,
@@ -200,7 +213,15 @@ Exemple de mauvaise réponse:
         error,
         suggestions: gptResult.suggestions || [],
       },
-    })
+      })
+
+    } catch (gptError: any) {
+      console.error('❌ GPT API error:', gptError)
+      return NextResponse.json({
+        success: false,
+        error: `Erreur lors de la génération de la requête: ${gptError.message}`,
+      })
+    }
 
   } catch (error: any) {
     console.error('❌ Chat API error:', error)
