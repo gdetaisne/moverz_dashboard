@@ -137,22 +137,31 @@ Question posée: "${message}"
 Résultats de la requête BigQuery:
 ${JSON.stringify(data, null, 2)}
 
-INSTRUCTIONS:
-1. Explique en français QU'EST-CE QUE CES DONNÉES SIGNIFIENT de manière simple et claire
-2. Identifie les TENDANCES et PATTERNS importants
-3. Donne des CONTEXTES et INTERPRÉTATIONS
-4. Propose des INSIGHTS ACTIONNABLES si pertinent
-5. Utilise des EXEMPLES CONCRETS des données
-6. Sois pédagogue et accessible
+INSTRUCTIONS CRITIQUES:
+1. Toujours inclure les CHIFFRES EXACTS avec notation: "(X -> Y)"
+2. Toujours calculer et afficher les VARIATIONS: "(+X% ou -X%)"
+3. Être DENSE et DOCUMENTÉ: donner faits, contexte, interprétation
+4. Utiliser format: "En baisse de 15% (120 → 103 imp)" pour les comparaisons
+5. Ajouter contexte sur CE QUE ÇA SIGNIFIE
+6. Proposer ACTIONS si pertinent
 
-Format ta réponse de manière structurée avec des paragraphes courts.
-NE copie pas juste les chiffres, EXPLIQUE les !
+Exemple de bonne réponse (format requis):
+"
+📊 **Résumé**
+Marseille: en baisse de 15% (8,420 → 7,156 imp/jour). Perte de 1,264 impressions quotidiennes.
 
-Exemple de bonne réponse:
-"Les impressions sont en baisse de 15% sur Marseille cette semaine. Cela signifie que le site apparaît moins souvent dans les résultats de recherche Google, ce qui peut indiquer une régression SEO ou une baisse de performance organique. Le site a perdu environ 1200 impressions par jour en moyenne. Je recommande de vérifier les mises à jour récentes du site et de s'assurer qu'il n'y a pas eu de problèmes techniques."
+🔍 **Interprétation**
+Cette baisse suggère une régression SEO: le site apparaît moins souvent dans les résultats Google. Sur 7 jours, cela représente ~8,848 impressions perdues. Cette chute peut indiquer:
+- Désindexation de pages
+- Perte de ranking sur mots-clés importants  
+- Impact d'une mise à jour technique récente
+
+💡 **Action recommandée**
+Vérifier les 10 dernières mises à jour, audits crawl/404, positions historiques sur top 20 kw.
+"
 
 Exemple de mauvaise réponse:
-"Analysée complétée."
+"Analyse complétée."
 `
 
       const analysisResponse = await openai.chat.completions.create({
@@ -168,7 +177,7 @@ Exemple de mauvaise réponse:
           },
         ],
         temperature: 0.7,
-        max_tokens: 1200,
+        max_tokens: 1500,
       })
 
       analysis = analysisResponse.choices[0]?.message?.content
