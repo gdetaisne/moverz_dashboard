@@ -234,15 +234,35 @@ Voir **[ETL-USAGE.md](ETL-USAGE.md)** pour :
 
 ## 📚 Documentation
 
-### Guides principaux
-- **[Plan Analytics Hybride](docs/PLAN-ANALYTICS-HYBRIDE-FINAL.md)** : Architecture complète
-- **[Présentation Externe](docs/PRESENTATION-ANALYTICS-EXTERNE.md)** : Pour consultants
+### 🌟 Documentation Principale
 
-### Guides à venir
-- Configuration GA4 (step-by-step)
-- ETL GSC → BigQuery (tutorial)
-- Agents IA (spécifications)
-- Troubleshooting
+**[📖 Documentation Complète](DOCUMENTATION-COMPLETE.md)**  
+Vue d'ensemble complète : architecture, flux de données, tables BigQuery, API routes, agents IA, variables d'environnement.
+
+### Guides par sujet
+
+| Document | Contenu |
+|----------|---------|
+| **[GETTING-STARTED.md](GETTING-STARTED.md)** | Quick start (5 étapes pour démarrer) |
+| **[STATUS.md](STATUS.md)** | État du projet (ce qui est fait / à faire) |
+| **[CAPROVER-DEPLOY.md](CAPROVER-DEPLOY.md)** | Guide déploiement CapRover |
+| **[CAPROVER-BUILD-FIX.md](CAPROVER-BUILD-FIX.md)** | Optimisations build Docker |
+| **[BUILD-OPTIONS.md](BUILD-OPTIONS.md)** | Options de build et comparaisons |
+| **[ETL-USAGE.md](ETL-USAGE.md)** | Usage ETL (cron, logs, monitoring) |
+| **[DASHBOARD-DEPLOY.md](DASHBOARD-DEPLOY.md)** | Déploiement dashboard web |
+
+### Documentation technique
+
+- **[docs/PLAN-ANALYTICS-HYBRIDE-FINAL.md](docs/PLAN-ANALYTICS-HYBRIDE-FINAL.md)** : Architecture complète
+- **[docs/PRESENTATION-ANALYTICS-EXTERNE.md](docs/PRESENTATION-ANALYTICS-EXTERNE.md)** : Pour consultants
+
+### README par module
+
+- `etl/README.md` - Documentation ETL
+- `agents/README.md` - Documentation agents IA
+- `dashboard/README.md` - Documentation dashboard
+- `scripts/README.md` - Documentation scripts
+- `db/README.md` - Documentation schéma BigQuery
 
 ---
 
