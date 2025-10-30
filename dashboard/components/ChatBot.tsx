@@ -25,6 +25,13 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const [dataMode, setDataMode] = useState<boolean>(false)
+  const [sizeMode, setSizeMode] = useState<'small' | 'medium' | 'fullscreen'>(() => {
+    if (typeof window !== 'undefined') {
+      const m = (localStorage.getItem('chatbot_mode') as any) || 'small'
+      return (m === 'medium' || m === 'fullscreen') ? m : 'small'
+    }
+    return 'small'
+  })
   const [width, setWidth] = useState<number>(() => {
     if (typeof window !== 'undefined') {
       const v = Number(localStorage.getItem('chatbot_w'))
@@ -162,19 +169,32 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
 
 
   const toggleSize = () => {
-    const expanded = width < 520 || height < 700
-    const newW = expanded ? 640 : 384
-    const newH = expanded ? 720 : 600
-    setWidth(newW)
-    setHeight(newH)
+    // cycle small -> medium -> fullscreen -> small
+    const next = sizeMode === 'small' ? 'medium' : sizeMode === 'medium' ? 'fullscreen' : 'small'
+    setSizeMode(next)
+    if (next === 'small') {
+      setWidth(384); setHeight(600)
+    } else if (next === 'medium') {
+      setWidth(640); setHeight(720)
+    }
     if (typeof window !== 'undefined') {
-      localStorage.setItem('chatbot_w', String(newW))
-      localStorage.setItem('chatbot_h', String(newH))
+      localStorage.setItem('chatbot_mode', next)
+      if (next !== 'fullscreen') {
+        localStorage.setItem('chatbot_w', String(next === 'medium' ? 640 : 384))
+        localStorage.setItem('chatbot_h', String(next === 'medium' ? 720 : 600))
+      }
     }
   }
 
   return (
-    <div className="fixed bottom-6 right-6 z-50 flex flex-col bg-white rounded-lg shadow-2xl border border-slate-200" style={{ width, height }}>
+    <div
+      className={
+        sizeMode === 'fullscreen'
+          ? 'fixed inset-0 z-50 flex flex-col bg-white rounded-none shadow-2xl border-0'
+          : 'fixed bottom-6 right-6 z-50 flex flex-col bg-white rounded-lg shadow-2xl border border-slate-200'
+      }
+      style={sizeMode === 'fullscreen' ? undefined : { width, height }}
+    >
       {/* Header */}
       <div className="p-4 border-b bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg flex justify-between items-center select-none">
         <div>
@@ -187,12 +207,20 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
           <button
             onClick={toggleSize}
             className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
-            aria-label="Agrandir/Réduire"
-            title="Agrandir/Réduire"
+            aria-label="Taille: petit/moyen/plein écran"
+            title="Taille: petit/moyen/plein écran"
           >
-            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 16v4h-4M20 8V4h-4M4 16v4h4" />
-            </svg>
+            {sizeMode === 'fullscreen' ? (
+              // exit fullscreen
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 3H5v4M15 21h4v-4M9 21H5v-4M15 3h4v4" />
+              </svg>
+            ) : (
+              // expand icon
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 16v4h-4M20 8V4h-4M4 16v4h4" />
+              </svg>
+            )}
           </button>
           <button
             onClick={onToggle}
@@ -321,11 +349,13 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
         )}
       </div>
         {/* Resize handle */}
-        <div
-          onMouseDown={startResize}
-          className="absolute -bottom-2 -right-2 w-4 h-4 cursor-se-resize bg-slate-300 rounded-sm border border-slate-400"
-          title="Redimensionner"
-        />
+        {sizeMode !== 'fullscreen' && (
+          <div
+            onMouseDown={startResize}
+            className="absolute -bottom-2 -right-2 w-4 h-4 cursor-se-resize bg-slate-300 rounded-sm border border-slate-400"
+            title="Redimensionner"
+          />
+        )}
     </div>
   )
 }

@@ -60,12 +60,22 @@ SI DOUTE
 
 async function readStrategyContext(): Promise<{ markdown: string; json: string }> {
   try {
-    const base = path.join(process.cwd(), 'dashboard', 'data')
-    const [md, js] = await Promise.all([
-      fs.readFile(path.join(base, 'strategy.md'), 'utf-8').catch(() => ''),
-      fs.readFile(path.join(base, 'strategy.json'), 'utf-8').catch(() => ''),
-    ])
-    return { markdown: md, json: js }
+    // Try multiple locations (local build vs prod)
+    const bases = [
+      path.join(process.cwd(), 'dashboard', 'data'),
+      path.join(process.cwd(), 'data'),
+      path.join(process.cwd(), 'dashboard', 'dashboard', 'data'),
+    ]
+    let markdown = ''
+    let json = ''
+    for (const b of bases) {
+      if (!markdown) markdown = await fs.readFile(path.join(b, 'strategy.md'), 'utf-8').catch(() => '')
+      if (!json) json = await fs.readFile(path.join(b, 'strategy.json'), 'utf-8').catch(() => '')
+    }
+    // Fallback env
+    if (!markdown && process.env.STRATEGY_MD) markdown = process.env.STRATEGY_MD
+    if (!json && process.env.STRATEGY_JSON) json = process.env.STRATEGY_JSON
+    return { markdown, json }
   } catch {
     return { markdown: '', json: '' }
   }
@@ -100,6 +110,14 @@ export async function POST(request: NextRequest) {
 
     // Détection simple du sujet pour aiguiller le prompt
     const lower = message.toLowerCase()
+    // Heuristique de métrique demandée
+    const metric: 'impressions' | 'clicks' | 'ctr' | 'position' = /impression/.test(lower)
+      ? 'impressions'
+      : /ctr/.test(lower)
+      ? 'ctr'
+      : /position|rank|ranking/.test(lower)
+      ? 'position'
+      : 'clicks'
     const isDataQuestion = routed.mode === 'data'
     const topic: 'traffic' | '404' | 'agents' = /404|broken|lien cass|crawl/.test(lower)
       ? '404'
@@ -138,7 +156,7 @@ export async function POST(request: NextRequest) {
         model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
         messages: [
           { role: 'system', content: SYSTEM_PROMPT + (mode === 'summary' ? '\n\nCONTRAINTE: La réponse finale utilisateur doit tenir en 10 lignes max.' : '') },
-          { role: 'user', content: `[TOPIC=${topic}] ${message}` },
+          { role: 'user', content: `[TOPIC=${topic}] [METRIC=${metric}] ${message}` },
         ],
         temperature: 0.1, // Plus bas pour plus de cohérence
         max_tokens: 800,
@@ -178,8 +196,9 @@ export async function POST(request: NextRequest) {
           const foundCity = Object.keys(cityMap).find(c => lower.includes(c))
           const domainFilter = foundCity ? `AND domain = '${cityMap[foundCity]}'` : ''
           const days = /7\s?j|7\s?jours|\b7\b/.test(lower) ? 7 : 30
+          const selectExpr = metric === 'impressions' ? 'SUM(impressions) as impressions' : metric === 'ctr' ? 'AVG(ctr) as ctr' : metric === 'position' ? 'AVG(position) as position' : 'SUM(clicks) as clicks'
           gptResult = {
-            sql: `SELECT FORMAT_DATE('%Y-%m-%d', date) as date, SUM(clicks) as clicks\nFROM \`moverz-dashboard.analytics_core.gsc_daily_aggregated\`\nWHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)\n  AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)\n  ${domainFilter}\nGROUP BY date\nORDER BY date` ,
+            sql: `SELECT FORMAT_DATE('%Y-%m-%d', date) as date, ${selectExpr}\nFROM \`moverz-dashboard.analytics_core.gsc_daily_aggregated\`\nWHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)\n  AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)\n  ${domainFilter}\nGROUP BY date\nORDER BY date` ,
             explanation: 'Fallback constructeur: évolution des clics sur la période demandée.',
             suggestions: [foundCity ? `Comparer ${foundCity} à la moyenne réseau` : 'Préciser un domaine pour focaliser'],
           }

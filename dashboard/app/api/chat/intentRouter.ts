@@ -7,13 +7,15 @@ export interface IntentResult {
 
 const DATA_KEYWORDS = [
   // GSC / trafic
-  "gsc","google search console","impression","clic","ctr","position","serp","trafic",
+  "gsc","google search console","impression","clic","ctr","position","serp","trafic","performance","performé",
   // 404 / crawl
   "404","broken","lien cassé","crawl","scans",
   // agents
   "agent","agents","insight","run","exécution",
   // data/générique
-  "bigquery","sql","table","dataset","metrics","statistiques","évolution des clics","timeseries"
+  "bigquery","sql","table","dataset","metrics","statistiques","évolution des clics","timeseries",
+  // temps
+  "hier","avant-hier","semaine","mois","30j","7j"
 ];
 
 // Expressions conversationnelles → empêchent Data
@@ -33,7 +35,7 @@ function scoreIntent(message: string): IntentResult {
 
   // Compte les signaux data
   const dataHits = DATA_KEYWORDS.filter(k => m.includes(k));
-  const isQuestionNumeric = /(\b%\b|\b\d{1,4}\b|graph|courbe|stat|moyenne|tendance)/.test(m);
+  const isQuestionNumeric = /(\b%\b|\b\d{1,4}\b|graph|courbe|stat|moyenne|tendance|7j|30j)/.test(m);
   const isComparative = /(\btop\b|\bmax\b|meilleur|le\s+plus|plus\s+d')/.test(m);
   let confidence = 0;
 
