@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 import { Error404Evolution } from '@/components/Error404Evolution'
+import { Error404Analysis } from '@/components/Error404Analysis'
 
 interface ScanResult {
   site: string
@@ -424,6 +425,11 @@ export default function NotFoundPage() {
             </ul>
           </div>
         </div>
+      )}
+      
+      {/* Analyse IA (au-dessus des liens cassés) */}
+      {results.length > 0 && totalErrors > 0 && (
+        <Error404Analysis results={results} />
       )}
       
       {/* Tableau Liens Cassés */}

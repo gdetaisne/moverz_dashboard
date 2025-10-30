@@ -31,7 +31,7 @@ export const DEFAULT_SITES = [
   'devis-demenageur-marseille.fr',
   'devis-demenageur-toulousain.fr',
   'devis-demenageur-lyon.fr',
-  'bordeaux-demenageur.fr',
+  'www.bordeaux-demenageur.fr',
   'devis-demenageur-nantes.fr',
   'devis-demenageur-lille.fr',
   'devis-demenageur-nice.fr',

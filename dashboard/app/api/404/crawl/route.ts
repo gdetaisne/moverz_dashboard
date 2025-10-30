@@ -18,7 +18,7 @@ const SITES = [
   'devis-demenageur-nantes.fr',
   'devis-demenageur-toulousain.fr',
   'devis-demenageur-lyon.fr',
-  'bordeaux-demenageur.fr',
+  'www.bordeaux-demenageur.fr',
   'devis-demenageur-montpellier.fr',
 ]
 

@@ -67,7 +67,7 @@ DOMAINS=(
     "devis-demenageur-marseille.fr"
     "devis-demenageur-toulousain.fr"
     "devis-demenageur-lyon.fr"
-    "bordeaux-demenageur.fr"
+    "www.bordeaux-demenageur.fr"
     "devis-demenageur-nantes.fr"
     "devis-demenageur-lille.fr"
     "devis-demenageur-nice.fr"
@@ -213,7 +213,7 @@ export function getSite(): string {
     'devis-demenageur-marseille.fr': 'marseille',
     'devis-demenageur-toulousain.fr': 'toulouse',
     'devis-demenageur-lyon.fr': 'lyon',
-    'bordeaux-demenageur.fr': 'bordeaux',
+    'www.bordeaux-demenageur.fr': 'bordeaux',
     'devis-demenageur-nantes.fr': 'nantes',
     'devis-demenageur-lille.fr': 'lille',
     'devis-demenageur-nice.fr': 'nice',

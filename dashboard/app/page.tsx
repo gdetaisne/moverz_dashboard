@@ -71,7 +71,7 @@ export default function HomePage() {
   // Sites avec linking
   const sitesWithLinking = [
     'devis-demenageur-strasbourg.fr',
-    'bordeaux-demenageur.fr',
+    'www.bordeaux-demenageur.fr',
     'devis-demenageur-montpellier.fr',
     'devis-demenageur-nantes.fr',
     'devis-demenageur-rennes.fr',

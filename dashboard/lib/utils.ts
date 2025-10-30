@@ -27,7 +27,7 @@ export const CITIES = [
   { id: 'marseille', name: 'Marseille', domain: 'devis-demenageur-marseille.fr' },
   { id: 'toulouse', name: 'Toulouse', domain: 'devis-demenageur-toulousain.fr' },
   { id: 'lyon', name: 'Lyon', domain: 'devis-demenageur-lyon.fr' },
-  { id: 'bordeaux', name: 'Bordeaux', domain: 'bordeaux-demenageur.fr' },
+  { id: 'bordeaux', name: 'Bordeaux', domain: 'www.bordeaux-demenageur.fr' },
   { id: 'nantes', name: 'Nantes', domain: 'devis-demenageur-nantes.fr' },
   { id: 'lille', name: 'Lille', domain: 'devis-demenageur-lille.fr' },
   { id: 'nice', name: 'Nice', domain: 'devis-demenageur-nice.fr' },

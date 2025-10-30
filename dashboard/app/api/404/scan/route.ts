@@ -15,9 +15,17 @@ const SITES = [
   'devis-demenageur-nantes.fr',
   'devis-demenageur-toulousain.fr',
   'devis-demenageur-lyon.fr',
-  'bordeaux-demenageur.fr',
+  'www.bordeaux-demenageur.fr',
   'devis-demenageur-montpellier.fr',
 ]
+
+// Normaliser l'URL du site (ajouter www si nécessaire)
+function normalizeSiteUrl(site: string): string {
+  if (site === 'bordeaux-demenageur.fr') {
+    return 'www.bordeaux-demenageur.fr'
+  }
+  return site
+}
 
 // Pages à tester sur chaque site
 const TEST_PATHS = [

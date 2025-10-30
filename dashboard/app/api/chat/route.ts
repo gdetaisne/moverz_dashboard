@@ -38,7 +38,7 @@ BASE DE DONNÉES:
 
 Note: la colonne est "domain" pas "site" dans cette table.
 
-SITES: devis-demenageur-marseille.fr, devis-demenageur-toulousain.fr, devis-demenageur-lyon.fr, bordeaux-demenageur.fr, devis-demenageur-nantes.fr, devis-demenageur-lille.fr, devis-demenageur-nice.fr, devis-demenageur-strasbourg.fr, devis-demenageur-rouen.fr, devis-demenageur-rennes.fr, devis-demenageur-montpellier.fr
+SITES: devis-demenageur-marseille.fr, devis-demenageur-toulousain.fr, devis-demenageur-lyon.fr, www.bordeaux-demenageur.fr, devis-demenageur-nantes.fr, devis-demenageur-lille.fr, devis-demenageur-nice.fr, devis-demenageur-strasbourg.fr, devis-demenageur-rouen.fr, devis-demenageur-rennes.fr, devis-demenageur-montpellier.fr
 
 TÂCHE:
 Génère UNIQUEMENT du JSON valide avec cette structure:

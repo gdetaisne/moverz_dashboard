@@ -32,7 +32,8 @@ export const DOMAIN_TO_CITY: Record<string, City> = {
   'devis-demenageur-marseille.fr': 'marseille',
   'devis-demenageur-toulousain.fr': 'toulouse',
   'devis-demenageur-lyon.fr': 'lyon',
-  'bordeaux-demenageur.fr': 'bordeaux',
+  'www.bordeaux-demenageur.fr': 'bordeaux',
+  'bordeaux-demenageur.fr': 'bordeaux', // Rétrocompatibilité
   'devis-demenageur-nantes.fr': 'nantes',
   'devis-demenageur-lille.fr': 'lille',
   'devis-demenageur-nice.fr': 'nice',
@@ -61,7 +62,7 @@ export const SITES: Site[] = [
   { id: '1', city: 'marseille', domain: 'devis-demenageur-marseille.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '2', city: 'toulouse', domain: 'devis-demenageur-toulousain.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '3', city: 'lyon', domain: 'devis-demenageur-lyon.fr', status: 'active', createdAt: new Date('2025-01-01') },
-  { id: '4', city: 'bordeaux', domain: 'bordeaux-demenageur.fr', status: 'active', createdAt: new Date('2025-01-01') },
+  { id: '4', city: 'bordeaux', domain: 'www.bordeaux-demenageur.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '5', city: 'nantes', domain: 'devis-demenageur-nantes.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '6', city: 'lille', domain: 'devis-demenageur-lille.fr', status: 'active', createdAt: new Date('2025-01-01') },
   { id: '7', city: 'nice', domain: 'devis-demenageur-nice.fr', status: 'active', createdAt: new Date('2025-01-01') },
