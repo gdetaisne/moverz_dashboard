@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, MessageSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export function Navigation() {
@@ -10,6 +10,7 @@ export function Navigation() {
   
   const links = [
     { href: '/', label: 'Trafic', icon: TrendingUp },
+    { href: '/chat', label: 'Chat AI', icon: MessageSquare },
     { href: '/vitals', label: 'Vitals', icon: Activity },
     { href: '/404', label: '404', icon: AlertTriangle },
     { href: '/settings', label: 'Paramètres', icon: Settings },
