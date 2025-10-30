@@ -108,15 +108,17 @@ export default function VitalsPage() {
     )
   }
   
-  // Trier par dernier commit (plus récent en premier), puis par statut
+  // Trier par date de dernier commit (plus récent en premier)
   const sortedVitals = [...vitals].sort((a, b) => {
-    // Sites online d'abord
-    if (a.health.status === 'online' && b.health.status !== 'online') return -1
-    if (a.health.status !== 'online' && b.health.status === 'online') return 1
-    
-    // Puis par date de commit (plus récent en premier)
     const dateA = a.lastCommit?.date ? new Date(a.lastCommit.date).getTime() : 0
     const dateB = b.lastCommit?.date ? new Date(b.lastCommit.date).getTime() : 0
+    
+    // Si même date (ou pas de commit), trier par nom de ville
+    if (dateA === dateB) {
+      return a.city.localeCompare(b.city)
+    }
+    
+    // Plus récent en premier
     return dateB - dateA
   })
   
