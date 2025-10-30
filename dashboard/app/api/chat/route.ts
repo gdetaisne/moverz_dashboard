@@ -4,7 +4,13 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
-import { query } from '../../../../agents/shared/bigquery-tools.js'
+import { bigquery } from '@/lib/bigquery'
+
+// Helper function pour exécuter des requêtes
+async function query(sql: string): Promise<any[]> {
+  const [rows] = await bigquery.query({ query: sql })
+  return rows
+}
 
 export const dynamic = 'force-dynamic'
 
