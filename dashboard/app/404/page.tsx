@@ -9,6 +9,9 @@ import { Error404Analysis } from '@/components/Error404Analysis'
 interface ScanResult {
   site: string
   total_checked: number
+  total_pages_found?: number // Nombre total de pages trouvées
+  pages_not_analyzed?: number // Pages non analysées (limite atteinte)
+  max_pages_per_site?: number // Limite maximale de pages analysées
   errors_404: number
   broken_links: number
   errors_list: string[]
@@ -91,12 +94,15 @@ export default function NotFoundPage() {
               updated[index] = {
                 ...updated[index],
                 total_checked: data.total_checked || 0,
-              errors_404: data.errors_404 || 0,
-              broken_links: data.broken_links || 0,
-              errors_list: data.errors_list || [],
-              broken_links_list: data.broken_links_list || [],
-              progress_percent: data.progress_percent || 0,
-              status: data.status || 'in_progress',
+                total_pages_found: data.total_pages_found,
+                pages_not_analyzed: data.pages_not_analyzed,
+                max_pages_per_site: data.max_pages_per_site,
+                errors_404: data.errors_404 || 0,
+                broken_links: data.broken_links || 0,
+                errors_list: data.errors_list || [],
+                broken_links_list: data.broken_links_list || [],
+                progress_percent: data.progress_percent || 0,
+                status: data.status || 'in_progress',
               }
               return updated
             })
@@ -128,11 +134,18 @@ export default function NotFoundPage() {
     try {
       const response = await fetch('/api/404/history?days=30')
       const data = await response.json()
-      if (data.success && data.data.evolution) {
+      
+      // Toujours définir historyData, même si c'est un tableau vide
+      if (data.success && data.data && Array.isArray(data.data.evolution)) {
         setHistoryData(data.data.evolution)
+      } else {
+        // Si la structure n'est pas celle attendue, initialiser avec un tableau vide
+        console.warn('Unexpected API response structure:', data)
+        setHistoryData([])
       }
     } catch (error) {
       console.error('Failed to load history:', error)
+      setHistoryData([]) // S'assurer qu'on a toujours un tableau
     } finally {
       setLoadingHistory(false)
     }
@@ -278,7 +291,7 @@ export default function NotFoundPage() {
                     % Pages Revues
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Pages Vérifiées
+                    Pages (Analysées / Trouvées)
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Erreurs 404
@@ -336,7 +349,19 @@ export default function NotFoundPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
-                          {result.total_checked}
+                          <div className="flex flex-col">
+                            <span>
+                              {result.total_checked}
+                              {result.total_pages_found && result.total_pages_found > result.total_checked && (
+                                <span className="text-slate-500"> / {result.total_pages_found}</span>
+                              )}
+                            </span>
+                            {result.pages_not_analyzed && result.pages_not_analyzed > 0 && result.total_checked >= (result.max_pages_per_site || 300) && (
+                              <span className="text-xs text-orange-600 font-semibold mt-1">
+                                ⚠️ {result.pages_not_analyzed} non analysées (limite {result.max_pages_per_site || 300})
+                              </span>
+                            )}
+                          </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
                           <span className={result.errors_404 > 0 ? 'text-orange-600' : 'text-green-600'}>
@@ -412,7 +437,7 @@ export default function NotFoundPage() {
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-orange-600 font-bold">3.</span>
-                <span>Suit récursivement chaque lien (max 150 pages/site)</span>
+                <span>Suit récursivement chaque lien (max 300 pages/site)</span>
               </li>
               <li className="flex items-start gap-2">
                 <span className="text-orange-600 font-bold">4.</span>

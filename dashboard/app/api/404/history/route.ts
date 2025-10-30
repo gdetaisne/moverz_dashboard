@@ -18,15 +18,17 @@ export async function GET(request: NextRequest) {
     // Récupérer le dernier scan
     const lastScan = await getLastError404Scan()
     
+    console.log(`[404/history] Loaded ${evolution?.length || 0} evolution entries, lastScan: ${lastScan ? 'exists' : 'null'}`)
+    
     return NextResponse.json({
       success: true,
       data: {
-        evolution,
-        lastScan,
+        evolution: evolution || [],
+        lastScan: lastScan || null,
       },
       meta: {
         days,
-        count: evolution.length,
+        count: evolution?.length || 0,
       }
     })
   } catch (error: any) {
@@ -34,18 +36,20 @@ export async function GET(request: NextRequest) {
     // Log plus détaillé pour debug
     console.error('Full error:', JSON.stringify(error, null, 2))
     
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message,
-        details: error.message?.includes('Table not found') 
-          ? 'Migration BigQuery non appliquée ou table inexistante'
-          : 'Erreur lors de la récupération des données',
-        evolution: [], // Retourner tableau vide pour éviter crash UI
-        lastScan: null
+    // Retourner un succès avec données vides pour éviter crash UI
+    // Le frontend affichera le message "Aucune donnée historique disponible"
+    return NextResponse.json({
+      success: true,
+      data: {
+        evolution: [],
+        lastScan: null,
       },
-      { status: 500 }
-    )
+      meta: {
+        days: parseInt(request.nextUrl.searchParams.get('days') || '30', 10),
+        count: 0,
+      },
+      error: error.message,
+    })
   }
 }
 
