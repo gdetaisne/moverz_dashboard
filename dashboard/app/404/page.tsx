@@ -11,6 +11,7 @@ interface ScanResult {
   errors_404: number
   broken_links: number
   errors_list: string[]
+  broken_links_list?: Array<{ source: string; target: string }>
   scan_date?: string
   progress_percent?: number
   status?: 'in_progress' | 'completed'
@@ -23,6 +24,7 @@ export default function NotFoundPage() {
   const [lastScan, setLastScan] = useState<string | null>(null)
   const [historyData, setHistoryData] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [showBrokenLinksTable, setShowBrokenLinksTable] = useState(false)
   
   async function runScan() {
     if (scanning) return
@@ -381,6 +383,84 @@ export default function NotFoundPage() {
               </li>
             </ul>
           </div>
+        </div>
+      )}
+      
+      {/* Tableau Liens Cassés */}
+      {results.length > 0 && results.reduce((sum, r) => sum + (r.broken_links || 0), 0) > 0 && (
+        <div className="bg-white rounded-lg border border-slate-200 shadow-sm">
+          <div className="px-6 py-4 border-b border-slate-200 bg-slate-50">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-red-600" />
+                <h2 className="text-lg font-bold text-slate-800">🔗 Liens Cassés Détail</h2>
+              </div>
+              <button
+                onClick={() => setShowBrokenLinksTable(!showBrokenLinksTable)}
+                className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
+              >
+                {showBrokenLinksTable ? 'Masquer' : 'Afficher'} les détails
+              </button>
+            </div>
+            <p className="text-sm text-slate-600 mt-2">
+              {results.reduce((sum, r) => sum + (r.broken_links_list?.length || 0), 0)} liens cassés détectés
+            </p>
+          </div>
+          
+          {showBrokenLinksTable && (
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="border-b border-slate-200 bg-slate-50">
+                    <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Site
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Page Source
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                      Lien Cassé
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-slate-200">
+                  {results
+                    .filter(r => r.broken_links_list && r.broken_links_list.length > 0)
+                    .flatMap(result => 
+                      result.broken_links_list!.map((link, idx) => (
+                        <tr key={`${result.site}-${idx}`} className="hover:bg-slate-50 transition-colors">
+                          <td className="px-6 py-3 text-sm font-medium text-slate-900">
+                            {result.site}
+                          </td>
+                          <td className="px-6 py-3 text-sm">
+                            <a 
+                              href={link.source}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary-600 hover:text-primary-700 flex items-center gap-2"
+                            >
+                              {new URL(link.source).pathname}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </td>
+                          <td className="px-6 py-3 text-sm text-red-600 font-medium">
+                            <a 
+                              href={link.target}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-red-600 hover:text-red-700 flex items-center gap-2"
+                            >
+                              {new URL(link.target).pathname}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       )}
       

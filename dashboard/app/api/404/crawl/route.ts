@@ -28,6 +28,7 @@ interface CrawlResult {
   errors_404: number
   broken_links: number
   errors_list: string[]
+  broken_links_list: Array<{ source: string; target: string }>
   scan_date: string
   crawl_duration: number
   progress_percent: number
@@ -49,6 +50,7 @@ async function crawlSite(
   const errors: string[] = []
   const brokenPages = new Set<string>() // Pages retournant 404
   const brokenLinks = new Set<string>() // Liens qui pointent vers des pages 404
+  const brokenLinksList: Array<{ source: string; target: string }> = [] // Liste détaillée des liens cassés
   const toVisit: string[] = [`https://${domain}/`]
   
   console.log(`🕷️ Crawling ${domain}...`)
@@ -121,6 +123,11 @@ async function crawlSite(
             const targetPath = absoluteUrl.pathname
             if (brokenPages.has(targetPath)) {
               brokenLinks.add(url) // Track the source page that has the broken link
+              // Add to detailed list
+              brokenLinksList.push({
+                source: url,
+                target: absoluteUrl.toString()
+              })
             }
             
             if (!visited.has(cleanUrl) && !toVisit.includes(cleanUrl)) {
@@ -164,6 +171,7 @@ async function crawlSite(
     errors_404: errors.length,
     broken_links: brokenLinks.size,
     errors_list: errors.slice(0, 50), // Limit to 50 errors for display
+    broken_links_list: brokenLinksList, // List of all broken links
     scan_date: new Date().toISOString(),
     crawl_duration: duration,
     progress_percent: 100,
