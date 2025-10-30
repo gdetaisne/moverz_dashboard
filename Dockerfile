@@ -41,6 +41,7 @@ COPY dashboard/app ./dashboard/app
 COPY dashboard/components ./dashboard/components
 COPY dashboard/lib ./dashboard/lib
 COPY dashboard/public ./dashboard/public
+COPY dashboard/data ./dashboard/data
 
 # Build avec variables d'environnement pour optimiser
 ARG NODE_ENV=production
