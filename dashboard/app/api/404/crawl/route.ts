@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import * as cheerio from 'cheerio'
-import { insertError404History, saveBrokenLinks } from '@/lib/json-storage'
+import { insertError404History, saveBrokenLinks, saveError404UrlsScan, saveBrokenLinksScan } from '@/lib/json-storage'
 import { randomUUID } from 'crypto'
 
 /**
@@ -37,6 +37,7 @@ interface CrawlResult {
   crawl_duration: number
   progress_percent: number
   status: 'in_progress' | 'completed'
+  errors_detailed?: Array<{ path: string; status: '404' | '410' }>
 }
 
 type ProgressCallback = (result: Partial<CrawlResult>) => void
@@ -115,6 +116,7 @@ async function crawlSite(
   const toVisit = new Set<string>()
   const visited = new Set<string>()
   const errors: string[] = []
+  const errorsDetailed: Array<{ path: string; status: '404' | '410' }> = []
   const allFoundPages = new Set<string>()
   
   // Initialiser avec la page d'accueil
@@ -159,6 +161,7 @@ async function crawlSite(
       if (status === 404 || status === 410) {
         const path = new URL(url).pathname
         errors.push(path)
+        errorsDetailed.push({ path, status: status === 404 ? '404' : '410' })
         console.log(`  ❌ ${status}: ${path}`)
       }
       
@@ -302,6 +305,7 @@ async function crawlSite(
     crawl_duration: duration,
     progress_percent: 100,
     status: 'completed',
+    errors_detailed: errorsDetailed,
   }
   
   // Send final progress update
@@ -315,6 +319,11 @@ async function crawlSite(
 export async function POST(request: NextRequest) {
   console.log('🚀 Starting PARALLEL recursive crawl with SSE on', SITES.length, 'sites...')
   const overallStart = Date.now()
+  const urlObj = new URL(request.url)
+  const commit_sha = urlObj.searchParams.get('commit') || undefined
+  const branch = urlObj.searchParams.get('branch') || undefined
+  const actor = urlObj.searchParams.get('actor') || undefined
+  const repo = urlObj.searchParams.get('repo') || undefined
   
   // Create a ReadableStream for Server-Sent Events
   const stream = new ReadableStream({
@@ -365,7 +374,7 @@ export async function POST(request: NextRequest) {
           console.error('⚠️ Erreur lors de la sauvegarde des liens cassés:', error.message)
         }
         
-        // Enregistrer dans BigQuery
+        // Enregistrer dans BigQuery + mémoire URL-level (fichier JSON)
         try {
           const scanId = randomUUID()
           const now = new Date().toISOString()
@@ -386,7 +395,37 @@ export async function POST(request: NextRequest) {
             crawl_duration_seconds: totalDuration,
           })
           
-          console.log(`✅ Historique enregistré dans BigQuery (ID: ${scanId})`)
+          console.log(`✅ Historique enregistré (ID: ${scanId})`)
+
+          // Sauvegarder URLs 404/410 détaillées
+          const urlEntries = results.flatMap(r =>
+            (r.errors_detailed || []).map(e => ({ site: r.site, path: e.path, status: e.status }))
+          )
+          await saveError404UrlsScan({
+            scan_id: scanId,
+            scan_date: now,
+            commit_sha,
+            branch,
+            actor,
+            repo,
+            entries: urlEntries,
+          })
+          console.log(`✅ URLs 404/410 sauvegardées (${urlEntries.length})`)
+
+          // Sauvegarder liens cassés visibles par scan (source -> target)
+          const brokenLinksEntries = results.flatMap(r =>
+            (r.broken_links_list || []).map(l => ({ site: r.site, source: l.source, target: l.target }))
+          )
+          await saveBrokenLinksScan({
+            scan_id: scanId,
+            scan_date: now,
+            commit_sha,
+            branch,
+            actor,
+            repo,
+            links: brokenLinksEntries,
+          })
+          console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
         } catch (error: any) {
           console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error.message)
           console.error('⚠️ Détails:', {

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download } from 'lucide-react'
+import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 import { Error404Evolution } from '@/components/Error404Evolution'
 import { Error404Analysis } from '@/components/Error404Analysis'
@@ -29,6 +29,9 @@ export default function NotFoundPage() {
   const [historyData, setHistoryData] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [showBrokenLinksTable, setShowBrokenLinksTable] = useState(false)
+  const [delta, setDelta] = useState<any | null>(null)
+  const [loadingDelta, setLoadingDelta] = useState(false)
+  const [loadingLast, setLoadingLast] = useState(false)
   
   async function runScan() {
     if (scanning) return
@@ -127,6 +130,10 @@ export default function NotFoundPage() {
   // Charger l'historique au montage
   useEffect(() => {
     loadHistory()
+    loadDelta()
+    loadLastScan()
+    const id = setInterval(() => { loadDelta(); loadLastScan() }, 15000)
+    return () => clearInterval(id)
   }, [])
   
   async function loadHistory() {
@@ -149,6 +156,37 @@ export default function NotFoundPage() {
     } finally {
       setLoadingHistory(false)
     }
+  }
+
+  async function loadDelta() {
+    setLoadingDelta(true)
+    try {
+      const res = await fetch('/api/404/delta')
+      const json = await res.json()
+      if (json.success) setDelta(json.data)
+      else setDelta(null)
+    } catch (e) {
+      console.warn('Failed to load delta', e)
+      setDelta(null)
+    } finally {
+      setLoadingDelta(false)
+    }
+  }
+
+  async function loadLastScan() {
+    if (scanning) return
+    setLoadingLast(true)
+    try {
+      const res = await fetch('/api/404/last')
+      if (!res.ok) return
+      const json = await res.json()
+      if (json.success && json.data && Array.isArray(json.data.results)) {
+        setResults(json.data.results)
+        setSummary(json.data.summary)
+        setLastScan(json.data.scan_date)
+      }
+    } catch {}
+    finally { setLoadingLast(false) }
   }
   
   // Format time ago
@@ -187,7 +225,7 @@ export default function NotFoundPage() {
     }
     
     // Créer le CSV
-    const headers = ['Site', 'Page Source', 'Lien Cassé']
+    const headers = ['Site', 'Page Source', 'Lien cassé visible']
     const csvContent = [
       headers.join(','),
       ...allLinks.map(link => [
@@ -246,6 +284,101 @@ export default function NotFoundPage() {
         </div>
       </div>
       
+      {/* Delta Bandeau */}
+      {delta && (
+        <div className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="text-lg font-bold text-slate-800">Delta dernier commit</h2>
+              <span className="text-sm text-slate-500">{delta.from_scan_id.slice(0,8)} → {delta.to_scan_id.slice(0,8)}</span>
+            </div>
+            <button
+              onClick={loadDelta}
+              className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-slate-100 text-slate-700 rounded-md hover:bg-slate-200"
+            >
+              <RefreshCw className="h-4 w-4" /> Rafraîchir
+            </button>
+          </div>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="flex items-center gap-3 p-3 rounded-md border border-slate-200 bg-slate-50">
+              <TrendingDown className="h-5 w-5 text-green-600" />
+              <div>
+                <div className="text-xs uppercase text-slate-600 font-semibold">Corrigées</div>
+                <div className="text-2xl font-bold text-green-700">{delta.lost.length}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-md border border-slate-200 bg-slate-50">
+              <TrendingUp className="h-5 w-5 text-red-600" />
+              <div>
+                <div className="text-xs uppercase text-slate-600 font-semibold">Nouvelles</div>
+                <div className="text-2xl font-bold text-red-700">{delta.gained.length}</div>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 p-3 rounded-md border border-slate-200 bg-slate-50">
+              <Minus className="h-5 w-5 text-slate-600" />
+              <div>
+                <div className="text-xs uppercase text-slate-600 font-semibold">Persistantes</div>
+                <div className="text-2xl font-bold text-slate-800">{delta.persisting}</div>
+              </div>
+            </div>
+          </div>
+          {(delta.gained.length > 0 || delta.lost.length > 0) && (
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Nouvelles */}
+              <div className="border border-slate-200 rounded-md overflow-hidden">
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800">Nouvelles 404/410</div>
+                <div className="max-h-72 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-xs font-bold text-slate-700 uppercase">Site</th>
+                        <th className="text-left px-4 py-2 text-xs font-bold text-slate-700 uppercase">Path</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {delta.gained.map((it: any, idx: number) => (
+                        <tr key={`g-${idx}`} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 font-medium text-slate-900">{it.site}</td>
+                          <td className="px-4 py-2 text-red-700">{it.path}</td>
+                        </tr>
+                      ))}
+                      {delta.gained.length === 0 && (
+                        <tr><td className="px-4 py-2 text-slate-500" colSpan={2}>Aucune</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              {/* Corrigées */}
+              <div className="border border-slate-200 rounded-md overflow-hidden">
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800">Corrigées</div>
+                <div className="max-h-72 overflow-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-slate-50 sticky top-0">
+                      <tr>
+                        <th className="text-left px-4 py-2 text-xs font-bold text-slate-700 uppercase">Site</th>
+                        <th className="text-left px-4 py-2 text-xs font-bold text-slate-700 uppercase">Path</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {delta.lost.map((it: any, idx: number) => (
+                        <tr key={`l-${idx}`} className="hover:bg-slate-50">
+                          <td className="px-4 py-2 font-medium text-slate-900">{it.site}</td>
+                          <td className="px-4 py-2 text-green-700">{it.path}</td>
+                        </tr>
+                      ))}
+                      {delta.lost.length === 0 && (
+                        <tr><td className="px-4 py-2 text-slate-500" colSpan={2}>Aucune</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Summary Cards */}
       {summary && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -297,7 +430,7 @@ export default function NotFoundPage() {
                     Erreurs 404
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Liens Cassés
+                    Liens cassés visibles
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Taux d&apos;Erreur
@@ -356,7 +489,7 @@ export default function NotFoundPage() {
                                 <span className="text-slate-500"> / {result.total_pages_found}</span>
                               )}
                             </span>
-                            {result.pages_not_analyzed && result.pages_not_analyzed > 0 && result.total_checked >= (result.max_pages_per_site || 300) && (
+                            {(result.pages_not_analyzed ?? 0) > 0 && result.total_checked >= (result.max_pages_per_site || 300) && (
                               <span className="text-xs text-orange-600 font-semibold mt-1">
                                 ⚠️ {result.pages_not_analyzed} non analysées (limite {result.max_pages_per_site || 300})
                               </span>
@@ -369,9 +502,11 @@ export default function NotFoundPage() {
                           </span>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
-                          <span className={result.broken_links > 0 ? 'text-red-600' : 'text-green-600'}>
-                            {result.broken_links || 0}
-                          </span>
+                          {result.broken_links > 0 ? (
+                            <span className="text-red-600">{result.broken_links}</span>
+                          ) : (
+                            <span className="text-slate-400">{/* pas d'affichage du 0 */}</span>
+                          )}
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {errorRate}%
@@ -399,9 +534,14 @@ export default function NotFoundPage() {
                     </span>
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <span className="text-red-600 text-lg font-bold">
-                      {results.reduce((sum, r) => sum + (r.broken_links || 0), 0)}
-                    </span>
+                    {(() => {
+                      const totalBroken = results.reduce((sum, r) => sum + (r.broken_links || 0), 0)
+                      return totalBroken > 0 ? (
+                        <span className="text-red-600 text-lg font-bold">{totalBroken}</span>
+                      ) : (
+                        <span className="text-slate-400">{/* vide si 0 */}</span>
+                      )
+                    })()}
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-900">
                     {(() => {
@@ -464,7 +604,7 @@ export default function NotFoundPage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <AlertTriangle className="h-5 w-5 text-red-600" />
-                <h2 className="text-lg font-bold text-slate-800">🔗 Liens Cassés Détail</h2>
+                <h2 className="text-lg font-bold text-slate-800">🔗 Liens cassés visibles</h2>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -483,7 +623,7 @@ export default function NotFoundPage() {
               </div>
             </div>
             <p className="text-sm text-slate-600 mt-2">
-              {results.reduce((sum, r) => sum + (r.broken_links_list?.length || 0), 0)} liens cassés détectés
+              {results.reduce((sum, r) => sum + (r.broken_links_list?.length || 0), 0)} liens cassés visibles détectés
             </p>
           </div>
           
@@ -499,7 +639,7 @@ export default function NotFoundPage() {
                       Page Source
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                      Lien Cassé
+                      Lien cassé visible
                     </th>
                   </tr>
                 </thead>

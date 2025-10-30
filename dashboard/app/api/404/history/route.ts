@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getError404Evolution, getLastError404Scan } from '@/lib/json-storage'
+import { getError404Evolution, getLastError404Scan, getLastScansAsEvolution } from '@/lib/json-storage'
 
 export const dynamic = 'force-dynamic'
 
@@ -11,9 +11,13 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams
     const days = parseInt(searchParams.get('days') || '30', 10)
+    const count = parseInt(searchParams.get('count') || '20', 10)
+    const mode = (searchParams.get('mode') || 'last').toLowerCase()
     
-    // Récupérer l'évolution temporelle
-    const evolution = await getError404Evolution(days)
+    // Mode par défaut demandé: derniers crawls (non agrégés)
+    const evolution = mode === 'last'
+      ? await getLastScansAsEvolution(count)
+      : await getError404Evolution(days)
     
     // Récupérer le dernier scan
     const lastScan = await getLastError404Scan()
@@ -26,10 +30,7 @@ export async function GET(request: NextRequest) {
         evolution: evolution || [],
         lastScan: lastScan || null,
       },
-      meta: {
-        days,
-        count: evolution?.length || 0,
-      }
+      meta: { days, count: evolution?.length || 0, mode }
     })
   } catch (error: any) {
     console.error('API /404/history error:', error)
@@ -44,10 +45,7 @@ export async function GET(request: NextRequest) {
         evolution: [],
         lastScan: null,
       },
-      meta: {
-        days: parseInt(request.nextUrl.searchParams.get('days') || '30', 10),
-        count: 0,
-      },
+      meta: { days, count: 0, mode },
       error: error.message,
     })
   }

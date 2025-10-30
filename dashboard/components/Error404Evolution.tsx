@@ -18,9 +18,16 @@ interface Error404EvolutionProps {
 }
 
 export function Error404Evolution({ data }: Error404EvolutionProps) {
-  const formatDate = (dateStr: string) => {
+  const formatTickDate = (dateStr: string) => {
     try {
       return format(parseISO(dateStr), 'd MMM', { locale: fr })
+    } catch {
+      return dateStr
+    }
+  }
+  const formatTooltipDate = (dateStr: string) => {
+    try {
+      return format(parseISO(dateStr), "d MMM HH:mm", { locale: fr })
     } catch {
       return dateStr
     }
@@ -92,7 +99,7 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="date" 
-                  tickFormatter={formatDate}
+                  tickFormatter={formatTickDate}
                   tick={{ fill: '#64748b', fontSize: 12 }}
                   stroke="#cbd5e1"
                 />
@@ -101,7 +108,7 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
                   stroke="#cbd5e1"
                 />
                 <Tooltip 
-                  labelFormatter={formatDate}
+                  labelFormatter={formatTooltipDate}
                   contentStyle={{ 
                     background: 'white', 
                     border: '1px solid #e2e8f0',
