@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import * as cheerio from 'cheerio'
-import { insertError404History } from '@/lib/bigquery'
+import { insertError404History } from '@/lib/json-storage'
 import { randomUUID } from 'crypto'
 
 /**
