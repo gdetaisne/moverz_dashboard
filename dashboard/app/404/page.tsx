@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import PageIntro from '@/components/PageIntro'
 import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 import { Error404Evolution } from '@/components/Error404Evolution'
@@ -253,7 +254,11 @@ export default function NotFoundPage() {
           <AlertTriangle className="h-10 w-10 text-orange-600" />
           <div>
             <h1 className="text-4xl font-bold text-slate-900">Erreurs 404</h1>
-            <p className="mt-2 text-lg text-slate-600">Crawler récursif de pages introuvables (tous les liens internes)</p>
+            <PageIntro
+              finalite="Mesurer et réduire les erreurs 404 sur les sites."
+              tableaux={["Historique par scan", 'Évolution des erreurs', 'Liens cassés visibles']}
+              sources={["Crawler interne enregistré dans BigQuery"]}
+            />
           </div>
         </div>
         

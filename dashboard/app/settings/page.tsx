@@ -1,9 +1,15 @@
+import PageIntro from '@/components/PageIntro'
+
 export default function SettingsPage() {
   return (
     <div className="space-y-8">
       <div>
         <h1 className="text-3xl font-bold">Paramètres</h1>
-        <p className="mt-1 text-gray-600">Configuration du dashboard analytics</p>
+        <PageIntro
+          finalite="Configurer les accès, sources et options."
+          tableaux={["Clés et paramètres"]}
+          sources={["Variables d'environnement", 'Stockage local']}
+        />
       </div>
       
       <div className="bg-white rounded-lg border p-6 shadow-sm">

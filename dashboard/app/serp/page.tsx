@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from 'react'
+import PageIntro from '@/components/PageIntro'
 
 type SerpPreview = {
   url: string
@@ -61,6 +62,11 @@ export default function SerpPage() {
   return (
     <div className="p-6 space-y-4">
       <h1 className="text-2xl font-semibold">SERP – Top 20 (GSC)</h1>
+      <PageIntro
+        finalite="Visualiser les requêtes/pages leaders et un aperçu SERP."
+        tableaux={['Top 20 résultats (requêtes/pages)', 'Prévisualisation SERP']}
+        sources={['Google Search Console', 'Fetcher SERP (aperçu)']}
+      />
       <div className="flex items-center gap-3">
         <label className="text-sm">Site</label>
         <select

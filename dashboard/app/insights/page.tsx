@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import PageIntro from '@/components/PageIntro'
 import { InsightCard } from '@/components/InsightCard'
 
 interface Insight {
@@ -47,7 +48,11 @@ export default function InsightsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold mb-2">📊 Insights & Rapports</h1>
-        <p className="text-gray-600">Rapports et analyses générés par les agents IA</p>
+        <PageIntro
+          finalite="Identifier automatiquement opportunités et anomalies SEO."
+          tableaux={["Carte d'insight global", 'Actions recommandées']}
+          sources={['BigQuery (métriques GSC)', 'Analyse IA orchestrée']}
+        />
       </div>
 
       {/* Filtres */}

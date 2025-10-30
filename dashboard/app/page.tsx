@@ -9,6 +9,7 @@ import { GroupedDataTable } from '@/components/GroupedDataTable'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { InsightCard } from '@/components/InsightCard'
 import ChatBot from '@/components/ChatBot'
+import PageIntro from '@/components/PageIntro'
 import { formatNumber, formatPercent, formatPosition } from '@/lib/utils'
 import type { SiteMetrics, GSCGlobalMetrics } from '@/lib/bigquery'
 
@@ -175,7 +176,11 @@ export default function HomePage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-slate-900">Trafic SEO</h1>
-          <p className="mt-2 text-lg text-slate-600">Performance Google Search Console des 11 sites Moverz</p>
+          <PageIntro
+            finalite="Suivre l'état global du trafic SEO et les tendances récentes."
+            tableaux={['KPI (impressions, clics, CTR, position)', 'Évolution des impressions et des clics', 'Comparatif sites avec/sans linking']}
+            sources={["Google Search Console (agrégées quotidiennes)", 'Calculs locaux côté app']}
+          />
         </div>
         
         <div className="flex items-center gap-3">

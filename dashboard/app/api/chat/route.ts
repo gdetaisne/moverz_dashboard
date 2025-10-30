@@ -110,16 +110,29 @@ export async function POST(request: NextRequest) {
         throw new Error('Empty response from GPT')
       }
 
-      const gptResult = JSON.parse(content)
-      const sql = gptResult.sql
+      // Extraction JSON robuste (tolère ```json ... ```)
+      let gptResult: any
+      try {
+        gptResult = JSON.parse(content)
+      } catch {
+        const m = content.match(/```json\n([\s\S]*?)\n```/) || content.match(/{[\s\S]*}/)
+        if (!m) throw new Error('Failed to parse GPT JSON response')
+        gptResult = JSON.parse(m[1] ? m[1] : m[0])
+      }
+
+      let sql = gptResult.sql as string | undefined
 
       if (!sql) {
-        console.error('No SQL in response:', gptResult)
-        return NextResponse.json({
-          success: false,
-          error: 'No SQL query generated',
-          gptResponse: gptResult,
-        })
+        console.warn('No SQL in response, using fallback query')
+        // Fallback sécurisé: KPIs 7 jours par domaine
+        sql = `SELECT domain, SUM(impressions) AS total_impressions, SUM(clicks) AS total_clicks, AVG(ctr) AS avg_ctr, AVG(position) AS avg_position FROM \`moverz-dashboard.analytics_core.gsc_daily_aggregated\` WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 7 DAY) GROUP BY domain ORDER BY total_impressions DESC LIMIT 20`
+        gptResult = {
+          explanation: gptResult?.explanation || 'Fallback appliqué: KPIs globaux sur 7 jours par domaine.',
+          suggestions: gptResult?.suggestions || [
+            'Précisez un domaine (ex: "toulousain") pour une évolution temporelle',
+            'Demandez une comparaison 7j vs 7j précédents',
+          ],
+        }
       }
 
       console.log('📊 Generated SQL:', sql)

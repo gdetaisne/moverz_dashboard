@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Activity, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react'
+import PageIntro from '@/components/PageIntro'
 
 interface LastCommit {
   sha: string
@@ -128,9 +129,11 @@ export default function VitalsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold text-slate-900">Vitals des Sites</h1>
-          <p className="mt-2 text-lg text-slate-600">
-            Santé et dernière mise à jour des 11 sites Moverz
-          </p>
+          <PageIntro
+            finalite="Suivre la santé et les performances techniques."
+            tableaux={["Dernier déploiement", 'Dernier commit', 'Statut et vitals clés']}
+            sources={['Sondes internes', 'GitHub', 'Web Vitals']}
+          />
         </div>
         
         <button
