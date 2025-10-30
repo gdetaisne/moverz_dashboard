@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
+import MultiSiteTimeSeriesChart from '@/components/MultiSiteTimeSeriesChart'
 import { GroupedDataTable } from '@/components/GroupedDataTable'
 import { PeriodSelector } from '@/components/PeriodSelector'
 import { InsightCard } from '@/components/InsightCard'
@@ -91,20 +92,27 @@ export default function HomePage() {
   }
   
   // Sites avec linking
+  // Normalisation: comparer sans préfixe "www." pour éviter les mismatches visuels/données
+  const normalizeDomain = (domain: string) => domain.replace(/^www\./, '')
   const sitesWithLinking = [
     'devis-demenageur-strasbourg.fr',
-    'www.bordeaux-demenageur.fr',
+    'bordeaux-demenageur.fr', // sans www (normalisé)
     'devis-demenageur-montpellier.fr',
     'devis-demenageur-nantes.fr',
     'devis-demenageur-rennes.fr',
   ]
+  const normalizedWithLinking = sitesWithLinking.map(normalizeDomain)
   
   // Enrichir les données avec la catégorie linking
-  const enrichedData = globalData.map(site => ({
-    ...site,
-    hasLinking: sitesWithLinking.includes(site.site),
-    linkingLabel: sitesWithLinking.includes(site.site) ? '✅ Oui' : '❌ Non'
-  }))
+  const enrichedData = globalData.map(site => {
+    const siteDomainNormalized = normalizeDomain(site.site)
+    const hasLinking = normalizedWithLinking.includes(siteDomainNormalized)
+    return {
+      ...site,
+      hasLinking,
+      linkingLabel: hasLinking ? '✅ Oui' : '❌ Non'
+    }
+  })
   
   // Séparer et trier
   const withLinking = enrichedData.filter(s => s.hasLinking).sort((a, b) => b.impressions - a.impressions)
@@ -226,6 +234,19 @@ export default function HomePage() {
         <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
           <h2 className="text-lg font-bold text-slate-800 mb-4">👆 Évolution des Clics</h2>
           <TimeSeriesChart data={timeseriesData} metric="clicks" />
+        </div>
+      </div>
+
+      {/* Charts par site */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">📊 Évolution des Impressions par site</h2>
+          <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="impressions" />
+        </div>
+        
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-slate-800 mb-4">👆 Évolution des Clics par site</h2>
+          <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" />
         </div>
       </div>
       

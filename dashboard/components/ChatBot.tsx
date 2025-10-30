@@ -120,9 +120,9 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
               Exemple de questions :
             </p>
             <ul className="text-left mt-3 space-y-1 text-sm">
-              <li>• "Quels sites ont le plus d'impressions cette semaine ?"</li>
-              <li>• "Quelle est la tendance des clics pour Marseille ?"</li>
-              <li>• "Montre-moi les 10 pages les plus performantes"</li>
+              <li>• &quot;Quels sites ont le plus d&apos;impressions cette semaine ?&quot;</li>
+              <li>• &quot;Quelle est la tendance des clics pour Marseille ?&quot;</li>
+              <li>• &quot;Montre-moi les 10 pages les plus performantes&quot;</li>
             </ul>
           </div>
         )}

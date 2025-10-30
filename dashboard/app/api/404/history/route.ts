@@ -39,6 +39,9 @@ export async function GET(request: NextRequest) {
     
     // Retourner un succès avec données vides pour éviter crash UI
     // Le frontend affichera le message "Aucune donnée historique disponible"
+    const sp = request.nextUrl.searchParams
+    const days = parseInt(sp.get('days') || '30', 10)
+    const mode = (sp.get('mode') || 'last').toLowerCase()
     return NextResponse.json({
       success: true,
       data: {
