@@ -374,12 +374,12 @@ export async function POST(request: NextRequest) {
           console.error('⚠️ Erreur lors de la sauvegarde des liens cassés:', error.message)
         }
         
-        // Enregistrer dans BigQuery + mémoire URL-level (fichier JSON)
+        // Enregistrer dans la mémoire JSON locale (historique + URLs + liens par scan)
         try {
           const scanId = randomUUID()
           const now = new Date().toISOString()
           
-          console.log('💾 Tentative d\'enregistrement dans BigQuery...')
+          console.log('💾 Enregistrement dans la mémoire JSON locale...')
           
           await insertError404History({
             id: scanId,
@@ -395,7 +395,7 @@ export async function POST(request: NextRequest) {
             crawl_duration_seconds: totalDuration,
           })
           
-          console.log(`✅ Historique enregistré (ID: ${scanId})`)
+          console.log(`✅ Historique JSON enregistré (ID: ${scanId})`)
 
           // Sauvegarder URLs 404/410 détaillées
           const urlEntries = results.flatMap(r =>
@@ -427,18 +427,8 @@ export async function POST(request: NextRequest) {
           })
           console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
         } catch (error: any) {
-          console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error.message)
-          console.error('⚠️ Détails:', {
-            code: error.code,
-            details: error.details,
-            message: error.message
-          })
-          
-          // Ne pas faire échouer le crawl si l'enregistrement échoue
-          // L'enregistrement peut échouer si :
-          // 1. Table BigQuery n'existe pas (migration non appliquée)
-          // 2. Credentials BigQuery manquants ou invalides
-          // 3. Permissions insuffisantes
+          console.error('⚠️ Erreur lors de l\'enregistrement dans la mémoire JSON locale:', error.message)
+          // Ne pas faire échouer le crawl si l'écriture JSON échoue
         }
         
         // Send completion event

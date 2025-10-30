@@ -275,7 +275,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
     return scanDate >= cutoffDate
   })
   
-  // Grouper par date
+  // Grouper par date (clé = YYYY-MM-DD)
   const groupedByDate = new Map<string, Error404HistoryEntry[]>()
   
   filtered.forEach(entry => {
@@ -296,7 +296,8 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
     const errors = entries.map(e => e.total_errors_404)
     
     result.push({
-      date,
+      // Uniformiser en ISO complet: minuit UTC de la journée agrégée
+      date: `${date}T00:00:00.000Z`,
       nb_scans: entries.length,
       avg_pages_checked: totalPages / entries.length,
       avg_errors_404: totalErrors / entries.length,

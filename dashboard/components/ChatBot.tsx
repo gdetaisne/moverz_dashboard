@@ -9,6 +9,9 @@ interface Message {
   sql?: string
   results?: any[]
   analysis?: string
+  topic?: 'traffic' | '404' | 'agents'
+  mode?: 'summary' | 'detail' | 'deepsearch' | 'data'
+  extra?: any
 }
 
 interface ChatBotProps {
@@ -21,6 +24,23 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [dataMode, setDataMode] = useState<boolean>(false)
+  const [width, setWidth] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const v = Number(localStorage.getItem('chatbot_w'))
+      return Number.isFinite(v) && v >= 320 ? v : 384 // 384px ≈ w-96
+    }
+    return 384
+  })
+  const [height, setHeight] = useState<number>(() => {
+    if (typeof window !== 'undefined') {
+      const v = Number(localStorage.getItem('chatbot_h'))
+      return Number.isFinite(v) && v >= 420 ? v : 600
+    }
+    return 600
+  })
+  const [resizing, setResizing] = useState<boolean>(false)
+  const resizeStartRef = useRef<{ x: number; y: number; w: number; h: number } | null>(null)
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -30,7 +50,37 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
     scrollToBottom()
   }, [messages])
 
-  const handleSend = async () => {
+  // Resize listeners (toujours monté pour respecter les règles des hooks)
+  useEffect(() => {
+    function onMove(e: MouseEvent) {
+      if (!isOpen || !resizing || !resizeStartRef.current) return
+      const dx = e.clientX - resizeStartRef.current.x
+      const dy = e.clientY - resizeStartRef.current.y
+      const newW = Math.min(800, Math.max(320, resizeStartRef.current.w + dx))
+      const newH = Math.min(900, Math.max(420, resizeStartRef.current.h + dy))
+      setWidth(newW)
+      setHeight(newH)
+    }
+    function onUp() {
+      if (!isOpen) return
+      if (resizing) {
+        setResizing(false)
+        resizeStartRef.current = null
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('chatbot_w', String(width))
+          localStorage.setItem('chatbot_h', String(height))
+        }
+      }
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+    return () => {
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+  }, [isOpen, resizing, width, height])
+
+  const handleSend = async (options?: { mode?: 'summary' | 'detail' | 'deepsearch' | 'data' }) => {
     if (!input.trim() || loading) return
 
     const userMessage: Message = {
@@ -47,12 +97,22 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: input }),
+        body: JSON.stringify({ message: input, mode: options?.mode || 'summary', dataMode }),
       })
 
       const data = await response.json()
 
       if (data.success && data.data) {
+        if (data.data.mode === 'data' && !dataMode) {
+          // Le routeur a décidé DATA → informer et activer le badge
+          const switchMsg: Message = {
+            id: (Date.now() + 0.6).toString(),
+            role: 'assistant',
+            content: '🔄 Je passe en Mode Data Moverz…',
+          }
+          setDataMode(true)
+          setMessages((prev) => [...prev, switchMsg])
+        }
         const assistantMessage: Message = {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
@@ -60,6 +120,9 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
           sql: data.data.sql,
           results: data.data.results,
           analysis: data.data.analysis,
+          mode: data.data.mode,
+          topic: data.data.topic,
+          extra: data.data.extra,
         }
         setMessages((prev) => [...prev, assistantMessage])
       } else {
@@ -92,27 +155,59 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
     )
   }
 
+  const startResize = (e: React.MouseEvent) => {
+    setResizing(true)
+    resizeStartRef.current = { x: e.clientX, y: e.clientY, w: width, h: height }
+  }
+
+
+  const toggleSize = () => {
+    const expanded = width < 520 || height < 700
+    const newW = expanded ? 640 : 384
+    const newH = expanded ? 720 : 600
+    setWidth(newW)
+    setHeight(newH)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('chatbot_w', String(newW))
+      localStorage.setItem('chatbot_h', String(newH))
+    }
+  }
+
   return (
-    <div className="fixed bottom-6 right-6 z-50 w-96 h-[600px] flex flex-col bg-white rounded-lg shadow-2xl border border-gray-200">
+    <div className="fixed bottom-6 right-6 z-50 flex flex-col bg-white rounded-lg shadow-2xl border border-slate-200" style={{ width, height }}>
       {/* Header */}
-      <div className="p-4 border-b bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg flex justify-between items-center">
+      <div className="p-4 border-b bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-t-lg flex justify-between items-center select-none">
         <div>
           <h2 className="text-lg font-semibold">🤖 Assistant Analytique</h2>
-          <p className="text-xs opacity-90">Questions sur BigQuery</p>
+          <p className="text-xs text-white/80">
+            {dataMode ? 'Mode Data Moverz activé' : 'Mode généraliste'}
+          </p>
         </div>
-        <button
-          onClick={onToggle}
-          className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
-          aria-label="Fermer le chat"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            onClick={toggleSize}
+            className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
+            aria-label="Agrandir/Réduire"
+            title="Agrandir/Réduire"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4h4M20 16v4h-4M20 8V4h-4M4 16v4h4" />
+            </svg>
+          </button>
+          <button
+            onClick={onToggle}
+            className="text-white hover:bg-white/20 rounded-full p-1 transition-colors"
+            aria-label="Fermer le chat"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50">
         {messages.length === 0 && (
           <div className="text-center text-gray-500 py-8">
             <p className="text-lg mb-2">👋 Bonjour !</p>
@@ -136,17 +231,17 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
               className={`max-w-[80%] rounded-lg px-4 py-2 ${
                 message.role === 'user'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 text-gray-900'
+                  : 'bg-white text-slate-900 border border-slate-200'
               }`}
             >
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <p className={`whitespace-pre-wrap leading-relaxed ${message.role === 'user' ? 'text-white' : ''}`}>{message.content}</p>
               
               {message.sql && (
                 <details className="mt-2 text-xs">
-                  <summary className="cursor-pointer opacity-70 hover:opacity-100">
+                  <summary className={`cursor-pointer opacity-80 hover:opacity-100 ${message.role === 'user' ? 'text-white' : 'text-slate-700'}`}>
                     📊 Voir la requête SQL
                   </summary>
-                  <pre className="mt-2 p-2 bg-gray-900 text-green-400 rounded overflow-x-auto">
+                  <pre className="mt-2 p-2 bg-slate-900 text-emerald-300 rounded overflow-x-auto">
                     {message.sql}
                   </pre>
                 </details>
@@ -154,10 +249,10 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
 
               {message.results && message.results.length > 0 && (
                 <details className="mt-2 text-xs">
-                  <summary className="cursor-pointer opacity-70 hover:opacity-100">
+                  <summary className={`cursor-pointer opacity-80 hover:opacity-100 ${message.role === 'user' ? 'text-white' : 'text-slate-700'}`}>
                     📈 Voir les résultats ({message.results.length} lignes)
                   </summary>
-                  <pre className="mt-2 p-2 bg-gray-900 text-gray-100 rounded overflow-x-auto max-h-60 overflow-y-auto">
+                  <pre className="mt-2 p-2 bg-slate-900 text-slate-100 rounded overflow-x-auto max-h-60 overflow-y-auto">
                     {JSON.stringify(message.results, null, 2)}
                   </pre>
                 </details>
@@ -182,7 +277,7 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t bg-gray-50 rounded-b-lg">
+      <div className="p-4 border-t bg-slate-50 rounded-b-lg relative">
         <div className="flex space-x-2">
           <input
             type="text"
@@ -190,18 +285,47 @@ export default function ChatBot({ isOpen = false, onToggle }: ChatBotProps = { i
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
             placeholder="Posez une question..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            className="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm placeholder:text-slate-400"
             disabled={loading}
           />
           <button
-            onClick={handleSend}
+            onClick={() => handleSend()}
             disabled={loading || !input.trim()}
             className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition text-sm"
           >
             →
           </button>
         </div>
+        {/* Actions contextuelles pour le dernier message assistant */}
+        {messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].mode === 'data' && (
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              onClick={() => handleSend({ mode: 'detail' })}
+              className="px-3 py-1.5 text-xs rounded-md bg-slate-100 text-slate-800 hover:bg-slate-200"
+            >
+              Détailler
+            </button>
+            <button
+              onClick={() => handleSend({ mode: 'deepsearch' })}
+              className="px-3 py-1.5 text-xs rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100"
+            >
+              Deepsearch
+            </button>
+            <button
+              onClick={() => handleSend({ mode: 'data' })}
+              className="px-3 py-1.5 text-xs rounded-md bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
+            >
+              Data
+            </button>
+          </div>
+        )}
       </div>
+        {/* Resize handle */}
+        <div
+          onMouseDown={startResize}
+          className="absolute -bottom-2 -right-2 w-4 h-4 cursor-se-resize bg-slate-300 rounded-sm border border-slate-400"
+          title="Redimensionner"
+        />
     </div>
   )
 }

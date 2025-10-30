@@ -48,7 +48,7 @@ export function Error404Analysis({ results }: Error404AnalysisProps) {
     setError(null)
     
     try {
-      const response = await fetch('/api/404/analyze', {
+      const response = await fetch('/dashboard-api/404/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ results }),

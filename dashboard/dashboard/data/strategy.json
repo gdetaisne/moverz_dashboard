@@ -1,0 +1,109 @@
+{
+  "project": "Moverz",
+  "version": "2025-10-30",
+  "scope": "Business-only (no IT implementation details)",
+  "language": "fr-FR",
+  "meta": {
+    "one_line": "Estimation déménagement via photos → inventaire structuré → volume/prix → mise en relation partenaires.",
+    "geo": "France (SEO local par ville).",
+    "status": "MVP monétisable en place (v4)."
+  },
+  "organisation": {
+    "associates": [
+      { "name": "Toi", "role": "Process, cadrage, croissance; veut déléguer l’opérationnel" },
+      { "name": "Lucie", "role": "Associée business & opérationnelle" }
+    ],
+    "principles": ["Clarté", "Vitesse", "Une tâche à la fois", "Focus conversion et revenus"]
+  },
+  "offer": {
+    "consumer_path": "Landing locale → CTA /inventory-ia → photos → estimation → devis pro",
+    "partner_value": [
+      "Leads qualifiés avec inventaire et volume estimé",
+      "Réduction des visites inutiles, meilleure planification",
+      "Hausse taux de signature, moins d’aléas jour J"
+    ],
+    "segments_partners": ["Déménageurs", "Self-storage", "Assureurs (V5)"],
+    "design_partner_program": {
+      "pitch": "Offre gratuite à vie pour partenaires co-constructeurs",
+      "goal": "Fiabiliser la qualification et accélérer le PMF"
+    }
+  },
+  "business_model": {
+    "primary_streams": ["CPL (coût par lead)", "Commission (CPA%)"],
+    "hybrid_policy": "CPL modéré + commission sur signature",
+    "extensions": [
+      "Abonnements pro (volume garanti, SLA premium)",
+      "Exclusivité géographique",
+      "Cross-sell stockage",
+      "Assurance (V5 valorisation inventaire)",
+      "API (vente à déménageurs et self-storage)"
+    ]
+  },
+  "pivots": {
+    "assurance_v5": {
+      "thesis": "Valorisation d’inventaire pour assurance (avenants, sinistres)",
+      "gtm": "POC avec assureur IARD, conformité à cadrer"
+    },
+    "api_sales": {
+      "targets": ["Déménageurs", "Self-storage"],
+      "model": ["Pay-per-use", "Abonnement", "Licence par agence"]
+    }
+  },
+  "gtm": {
+    "acquisition": "SEO local multi-sites villes",
+    "funnel": "Landing → CTA → photos → estimation → contact partenaire",
+    "analytics": {
+      "ga4": "Un seul GA_ID partagé",
+      "events": ["clics", "origines", "CTA /inventory-ia", "complétion estimation"]
+    },
+    "bizdev": {
+      "partners": ["Régionaux", "Nationaux"],
+      "design_partners": "Offre gratuite à vie, suivi mensuel",
+      "sla": "Réponse sous 24h idéal, 48h max"
+    }
+  },
+  "kpi": {
+    "acquisition": ["sessions/ville", "CTR", "complétion estimation"],
+    "quality": ["% leads qualifiés", "réponse 24h", "signature"],
+    "revenue": ["CPL", "commission", "revenu/ville"],
+    "experience": ["NPS client", "NPS partenaire", "écart volume"],
+    "unit_economics": ["revenu/lead", "revenu/ville", "LTV partenaire", "churn"]
+  },
+  "bpi": {
+    "status": "À instruire",
+    "tracks": ["French Tech", "Innov", "Amorçage régional"],
+    "axes": [
+      "Problème: estimation lente/opaque",
+      "Solution: photos→inventaire→volume",
+      "Innovation: valorisation assurance",
+      "Usage fonds: acquisition, QA data, support",
+      "Impact: accélération go-to-market"
+    ]
+  },
+  "risks": [
+    { "risk": "Qualité lead", "mitigation": "critères + feedback partenaires" },
+    { "risk": "Réponse lente", "mitigation": "SLA + scoring + reroutage" },
+    { "risk": "Signature faible", "mitigation": "appariement + infos pratiques" },
+    { "risk": "Dépendance SEO", "mitigation": "diversification canaux" },
+    { "risk": "Conformité", "mitigation": "contrats + consentements" }
+  ],
+  "roadmap": {
+    "t0_t1": ["Signer design partners", "Tester CPL", "Formaliser SLA"],
+    "t1_t2": ["Multi-villes", "Mesurer unit economics", "Lancer API pilote"],
+    "t2_t3": ["Stabiliser revenus CPL/CPA", "POC assurance V5", "API packaging"]
+  },
+  "decision_rules": [
+    "Augmenter CPL si taux signature > cible",
+    "Donner exclusivité si SLA respecté",
+    "Couper si taux réponse < seuil",
+    "Prioriser villes rentables"
+  ],
+  "open_questions": [
+    "Barème CPL/ville",
+    "Taux commission %",
+    "Seuil SLA 24/48h",
+    "Exclusivité: durée/volume minimum",
+    "Tarification API",
+    "Ciblage assureurs"
+  ]
+}

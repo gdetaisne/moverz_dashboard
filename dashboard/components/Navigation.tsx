@@ -46,6 +46,7 @@ export function Navigation() {
       }
     },
     
+    
     // Technique
     { 
       href: '/vitals', label: 'Performance', icon: Activity, title: 'Web Vitals et vitesse',

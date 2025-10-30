@@ -79,6 +79,19 @@ export default function SettingsPage() {
           <p><span className="font-medium">Déploiement:</span> CapRover</p>
         </div>
       </div>
+
+      <div className="bg-white rounded-lg border p-6 shadow-sm">
+        <h2 className="text-lg font-semibold mb-4">Stratégie (contenu interne)</h2>
+        <p className="text-sm text-gray-600 mb-4">
+          Renseigne la page <span className="font-medium">Stratégie</span> pour fournir au chatbot le contexte business (vision, pricing, clients, roadmap).
+        </p>
+        <a
+          href="/settings/strategie"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary-600 text-white hover:bg-primary-700 transition"
+        >
+          Ouvrir la page Stratégie
+        </a>
+      </div>
     </div>
   )
 }

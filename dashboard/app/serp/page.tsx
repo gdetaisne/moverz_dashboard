@@ -21,13 +21,15 @@ export default function SerpPage() {
   const [data, setData] = useState<SerpPreview[]>([])
   const [loading, setLoading] = useState<boolean>(false)
   const [error, setError] = useState<string | null>(null)
+  const [limit, setLimit] = useState<number>(20)
+  // Chargement uniquement sur action utilisateur
 
   const endpoint = useMemo(() => {
     const params = new URLSearchParams()
     if (site) params.set('site', site)
-    params.set('limit', '20')
+    params.set('limit', String(limit))
     return `/api/serp/preview?${params.toString()}`
-  }, [site])
+  }, [site, limit])
 
   useEffect(() => {
     let ignore = false
@@ -42,26 +44,27 @@ export default function SerpPage() {
         }
       })
       .catch(() => {})
+    return () => {
+      ignore = true
+    }
+  }, [])
 
+  function loadData() {
     setLoading(true)
     setError(null)
     fetch(endpoint)
       .then((r) => r.json())
       .then((json) => {
-        if (ignore) return
         if (json.success) setData(json.data)
         else setError(json.error || 'Erreur inconnue')
       })
       .catch((e) => setError(String(e)))
       .finally(() => setLoading(false))
-    return () => {
-      ignore = true
-    }
-  }, [endpoint])
+  }
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">SERP – Top 20 (GSC)</h1>
+      <h1 className="text-2xl font-semibold">SERP – Top {limit} (GSC)</h1>
       <PageIntro
         finalite="Visualiser les requêtes/pages leaders et un aperçu SERP."
         tableaux={['Top 20 résultats (requêtes/pages)', 'Prévisualisation SERP']}
@@ -79,6 +82,30 @@ export default function SerpPage() {
             <option key={s} value={s}>{s}</option>
           ))}
         </select>
+        <div className="ml-4 flex items-center gap-2">
+          <span className="text-sm text-gray-600">Afficher</span>
+          {[20, 100, 200].map((v) => (
+            <button
+              key={v}
+              onClick={() => setLimit(v)}
+              className={
+                'text-sm px-2 py-1 rounded border ' +
+                (limit === v
+                  ? 'bg-blue-600 text-white border-blue-700'
+                  : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50')
+              }
+            >
+              {v}
+            </button>
+          ))}
+          <button
+            onClick={loadData}
+            className="ml-2 text-sm px-3 py-1 rounded border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-60"
+            disabled={loading}
+          >
+            Charger
+          </button>
+        </div>
       </div>
 
       {loading && <div className="text-sm">Chargement…</div>}

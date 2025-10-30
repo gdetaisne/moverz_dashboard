@@ -19,6 +19,16 @@ const nextConfig = {
     NEXT_PUBLIC_SITE_NAME: 'Moverz Analytics',
   },
   
+  // Réécritures pour éviter les conflits de proxy: route Next API exposée sous /dashboard-api/*
+  async rewrites() {
+    return [
+      {
+        source: '/dashboard-api/:path*',
+        destination: '/api/:path*',
+      },
+    ]
+  },
+  
   // Headers de sécurité
   async headers() {
     return [

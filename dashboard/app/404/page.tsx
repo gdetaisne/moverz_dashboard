@@ -42,7 +42,7 @@ export default function NotFoundPage() {
     setSummary(null)
     
     try {
-      const response = await fetch('/api/404/crawl', {
+      const response = await fetch('/dashboard-api/404/crawl', {
         method: 'POST',
       })
       
@@ -140,7 +140,7 @@ export default function NotFoundPage() {
   async function loadHistory() {
     setLoadingHistory(true)
     try {
-      const response = await fetch('/api/404/history?days=30')
+      const response = await fetch('/dashboard-api/404/history?days=30')
       const data = await response.json()
       
       // Toujours définir historyData, même si c'est un tableau vide
@@ -162,7 +162,7 @@ export default function NotFoundPage() {
   async function loadDelta() {
     setLoadingDelta(true)
     try {
-      const res = await fetch('/api/404/delta')
+      const res = await fetch('/dashboard-api/404/delta')
       const json = await res.json()
       if (json.success) setDelta(json.data)
       else setDelta(null)
@@ -178,7 +178,7 @@ export default function NotFoundPage() {
     if (scanning) return
     setLoadingLast(true)
     try {
-      const res = await fetch('/api/404/last')
+      const res = await fetch('/dashboard-api/404/last')
       if (!res.ok) return
       const json = await res.json()
       if (json.success && json.data && Array.isArray(json.data.results)) {
