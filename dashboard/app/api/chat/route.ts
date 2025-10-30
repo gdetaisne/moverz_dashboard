@@ -129,24 +129,54 @@ export async function POST(request: NextRequest) {
     if (!error && data.length > 0) {
       console.log('🧠 Analyzing results with GPT...')
       
+      const analysisPrompt = `
+Tu es un expert en analytics web et SEO pour des sites de déménagement.
+
+Question posée: "${message}"
+
+Résultats de la requête BigQuery:
+${JSON.stringify(data, null, 2)}
+
+INSTRUCTIONS:
+1. Explique en français QU'EST-CE QUE CES DONNÉES SIGNIFIENT de manière simple et claire
+2. Identifie les TENDANCES et PATTERNS importants
+3. Donne des CONTEXTES et INTERPRÉTATIONS
+4. Propose des INSIGHTS ACTIONNABLES si pertinent
+5. Utilise des EXEMPLES CONCRETS des données
+6. Sois pédagogue et accessible
+
+Format ta réponse de manière structurée avec des paragraphes courts.
+NE copie pas juste les chiffres, EXPLIQUE les !
+
+Exemple de bonne réponse:
+"Les impressions sont en baisse de 15% sur Marseille cette semaine. Cela signifie que le site apparaît moins souvent dans les résultats de recherche Google, ce qui peut indiquer une régression SEO ou une baisse de performance organique. Le site a perdu environ 1200 impressions par jour en moyenne. Je recommande de vérifier les mises à jour récentes du site et de s'assurer qu'il n'y a pas eu de problèmes techniques."
+
+Exemple de mauvaise réponse:
+"Analysée complétée."
+`
+
       const analysisResponse = await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL || 'gpt-4-turbo-preview',
         messages: [
           {
             role: 'system',
-            content: 'Tu analyses des données analytiques et fournis des insights clairs et actionnables. Réponds en français.',
+            content: 'Tu es un expert analytics qui explique les données de manière claire et pédagogique. Tu réponds TOUJOURS en français.',
           },
           {
             role: 'user',
-            content: `Question: ${message}\n\nRésultats:\n${JSON.stringify(data, null, 2)}\n\nDonne-moi une analyse claire et des recommandations.`,
+            content: analysisPrompt,
           },
         ],
         temperature: 0.7,
-        max_tokens: 800,
+        max_tokens: 1200,
       })
 
       analysis = analysisResponse.choices[0]?.message?.content
       console.log('✅ Analysis generated')
+    } else if (error) {
+      analysis = `❌ Erreur lors de l'exécution de la requête: ${error}\n\nJe ne peux pas analyser les données car la requête a échoué.`
+    } else {
+      analysis = `Aucune donnée trouvée pour votre question.\n\nEssayez de reformuler votre question ou d'utiliser des critères différents.`
     }
 
     // 4. Retourner la réponse
