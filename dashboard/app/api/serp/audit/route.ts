@@ -76,12 +76,12 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now()
   const searchParams = request.nextUrl.searchParams
   const site = searchParams.get('site') || undefined
-  const limit = 200
+  const limit = parseInt(searchParams.get('limit') || '20', 10)
 
   try {
-    console.log(`🔍 Démarrage audit SERP TOP ${limit}${site ? ` (site: ${site})` : ''}`)
+    console.log(`🔍 Démarrage audit SERP${site ? ` (site: ${site})` : ''}, limite: ${limit}`)
     
-    // 1. Récupérer les top pages
+    // 1. Récupérer les pages selon la sélection actuelle
     const pages = await getTopPages(site, limit)
     console.log(`📊 ${pages.length} pages récupérées depuis GSC`)
     

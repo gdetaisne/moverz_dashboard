@@ -93,6 +93,7 @@ export default function SerpPage() {
     try {
       const params = new URLSearchParams()
       if (site) params.set('site', site)
+      params.set('limit', String(limit)) // Utiliser la limite actuelle
       const response = await fetch(`/api/serp/audit?${params.toString()}`, {
         method: 'POST'
       })
@@ -324,7 +325,7 @@ export default function SerpPage() {
             className="ml-4 text-sm px-4 py-1 rounded border bg-purple-600 text-white border-purple-700 hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed font-semibold"
             disabled={auditLoading || loading}
           >
-            {auditLoading ? 'Audit en cours...' : '🔍 Audit TOP 200'}
+            {auditLoading ? 'Audit en cours...' : `🔍 Audit TOP ${limit}`}
           </button>
           <button
             onClick={() => exportToCSV('preview')}
@@ -341,7 +342,7 @@ export default function SerpPage() {
       {auditResult && (
         <div className="bg-white border border-purple-200 rounded-lg p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-purple-900">📊 Résultats Audit TOP 200</h2>
+            <h2 className="text-xl font-bold text-purple-900">📊 Résultats Audit TOP {limit}</h2>
             <button
               onClick={() => exportToCSV('audit')}
               className="text-sm px-3 py-1 rounded border bg-purple-600 text-white border-purple-700 hover:bg-purple-700"
