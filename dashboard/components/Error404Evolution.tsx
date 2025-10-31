@@ -27,7 +27,12 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
   }
   const formatTooltipDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), "d MMM HH:mm", { locale: fr })
+      const date = parseISO(dateStr)
+      // Si c'est à 00:00:00 (mode évolution quotidienne), ne pas afficher l'heure
+      if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0) {
+        return format(date, 'd MMM yyyy', { locale: fr })
+      }
+      return format(date, "d MMM HH:mm", { locale: fr })
     } catch {
       return dateStr
     }

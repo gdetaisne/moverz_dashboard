@@ -141,7 +141,8 @@ export default function NotFoundPage() {
   async function loadHistory() {
     setLoadingHistory(true)
     try {
-      const response = await fetch('/dashboard-api/404/history?days=30')
+      // Mode 'evolution' pour agrégation quotidienne (meilleure visualisation)
+      const response = await fetch('/dashboard-api/404/history?days=30&mode=evolution')
       const data = await response.json()
       
       // Toujours définir historyData, même si c'est un tableau vide
