@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import PageIntro from '@/components/PageIntro'
 import { InsightCard } from '@/components/InsightCard'
+import { Info, ChevronDown, ChevronUp } from 'lucide-react'
 
 interface Insight {
   id: string
@@ -23,6 +24,7 @@ export default function InsightsPage() {
   const [insights, setInsights] = useState<Insight[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
+  const [showExplanation, setShowExplanation] = useState(false)
 
   useEffect(() => {
     fetchInsights()
@@ -53,6 +55,36 @@ export default function InsightsPage() {
           tableaux={["Carte d'insight global", 'Actions recommandées']}
           sources={['BigQuery (métriques GSC)', 'Analyse IA orchestrée']}
         />
+      </div>
+
+      {/* Section Explication */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg">
+        <button
+          onClick={() => setShowExplanation(!showExplanation)}
+          className="w-full px-4 py-2 flex items-center justify-between hover:bg-slate-100 transition-colors rounded-lg text-sm"
+        >
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-slate-500" />
+            <span className="text-slate-600 font-medium">Comment fonctionnent les insights ?</span>
+          </div>
+          {showExplanation ? (
+            <ChevronUp className="h-4 w-4 text-slate-500" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-slate-500" />
+          )}
+        </button>
+        {showExplanation && (
+          <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+            <p>Les insights sont générés automatiquement par des <strong>agents IA</strong> qui analysent vos métriques SEO et identifient opportunités et anomalies.</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li><strong>📊 Rapports</strong> : analyse périodique globale du trafic et des tendances</li>
+              <li><strong>🚦 Trafic</strong> : détection de baisses/anomalies de trafic</li>
+              <li><strong>🔍 SEO</strong> : opportunités d&apos;optimisation technique</li>
+              <li><strong>📝 Contenu</strong> : recommandations sur le contenu</li>
+            </ul>
+            <p className="text-xs text-slate-500 mt-2">💡 Chaque insight contient un score, des preuves et des actions recommandées. Les insights critiques nécessitent une attention immédiate.</p>
+          </div>
+        )}
       </div>
 
       {/* Filtres */}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Activity, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw } from 'lucide-react'
+import { Activity, CheckCircle2, XCircle, Clock, AlertCircle, RefreshCw, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import PageIntro from '@/components/PageIntro'
 
 interface LastCommit {
@@ -74,6 +74,7 @@ export default function VitalsPage() {
   const [vitals, setVitals] = useState<SiteVitals[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [showExplanation, setShowExplanation] = useState(false)
   
   const fetchVitals = async (showRefresh = false) => {
     if (showRefresh) setRefreshing(true)
@@ -144,6 +145,36 @@ export default function VitalsPage() {
           <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
           {refreshing ? 'Actualisation...' : 'Actualiser'}
         </button>
+      </div>
+      
+      {/* Section Explication */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg">
+        <button
+          onClick={() => setShowExplanation(!showExplanation)}
+          className="w-full px-4 py-2 flex items-center justify-between hover:bg-slate-100 transition-colors rounded-lg text-sm"
+        >
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-slate-500" />
+            <span className="text-slate-600 font-medium">Comment sont mesurés les vitals ?</span>
+          </div>
+          {showExplanation ? (
+            <ChevronUp className="h-4 w-4 text-slate-500" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-slate-500" />
+          )}
+        </button>
+        {showExplanation && (
+          <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+            <p>Les vitals sont mesurés en temps réel via des <strong>sondes internes</strong> qui vérifient la santé de chaque site.</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li><strong>Statut</strong> : vérification HTTP (online/offline/error) avec code de réponse</li>
+              <li><strong>Temps de réponse</strong> : latence de la requête HTTP (vert &lt;500ms, orange &lt;1000ms, rouge &gt;1000ms)</li>
+              <li><strong>SSL</strong> : validité du certificat HTTPS</li>
+              <li><strong>Dernier commit</strong> : dernier déploiement détecté via l&apos;API GitHub</li>
+            </ul>
+            <p className="text-xs text-slate-500 mt-2">💡 Les sites sont triés par date de dernier commit (plus récent en premier). Un rafraîchissement manuel actualise toutes les sondes.</p>
+          </div>
+        )}
       </div>
       
       {/* Stats rapides */}

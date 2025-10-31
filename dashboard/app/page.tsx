@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw } from 'lucide-react'
+import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
 import MultiSiteTimeSeriesChart from '@/components/MultiSiteTimeSeriesChart'
@@ -38,6 +38,8 @@ export default function HomePage() {
   const [chatOpen, setChatOpen] = useState(false)
   const [showFullImpr, setShowFullImpr] = useState(false)
   const [showFullClicks, setShowFullClicks] = useState(false)
+  const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null)
+  const [showExplanation, setShowExplanation] = useState(false)
   
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -80,6 +82,8 @@ export default function HomePage() {
       const result = await response.json()
       
       if (result.success) {
+        // Mettre à jour la date du dernier update
+        setLastUpdateDate(new Date())
         alert('✅ Données actualisées avec succès !')
         // Recharger les données après l'ETL
         await fetchData()
@@ -183,18 +187,62 @@ export default function HomePage() {
           />
         </div>
         
-        <div className="flex items-center gap-3">
-          <button
-            onClick={runETL}
-            disabled={etlLoading}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
-          >
-            <RefreshCw className={`h-4 w-4 ${etlLoading ? 'animate-spin' : ''}`} />
-            {etlLoading ? 'Actualisation...' : 'Actualiser les données'}
-          </button>
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={runETL}
+              disabled={etlLoading}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary-600 text-white font-semibold rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+            >
+              <RefreshCw className={`h-4 w-4 ${etlLoading ? 'animate-spin' : ''}`} />
+              {etlLoading ? 'Actualisation...' : 'Refresh'}
+            </button>
+            
+            <PeriodSelector value={period} onChange={setPeriod} />
+          </div>
           
-          <PeriodSelector value={period} onChange={setPeriod} />
+          {lastUpdateDate && (
+            <p className="text-sm text-slate-500">
+              Dernier update : {lastUpdateDate.toLocaleString('fr-FR', { 
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+              })}
+            </p>
+          )}
         </div>
+      </div>
+      
+      {/* Section Explication */}
+      <div className="bg-slate-50 border border-slate-200 rounded-lg">
+        <button
+          onClick={() => setShowExplanation(!showExplanation)}
+          className="w-full px-4 py-2 flex items-center justify-between hover:bg-slate-100 transition-colors rounded-lg text-sm"
+        >
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-slate-500" />
+            <span className="text-slate-600 font-medium">Comment ces métriques sont calculées ?</span>
+          </div>
+          {showExplanation ? (
+            <ChevronUp className="h-4 w-4 text-slate-500" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-slate-500" />
+          )}
+        </button>
+        {showExplanation && (
+          <div className="px-4 pb-4 text-sm text-slate-600 space-y-2">
+            <p>Les données proviennent de <strong>Google Search Console</strong> via un ETL quotidien qui agrège les métriques par jour.</p>
+            <ul className="list-disc list-inside space-y-1 ml-2">
+              <li><strong>Impressions</strong> : nombre de fois où votre site apparaît dans les résultats de recherche</li>
+              <li><strong>Clics</strong> : nombre d&apos;utilisateurs ayant cliqué sur vos résultats</li>
+              <li><strong>CTR</strong> : taux de clic = (Clics / Impressions) × 100</li>
+              <li><strong>Position</strong> : position moyenne dans les résultats de recherche</li>
+            </ul>
+            <p className="text-xs text-slate-500 mt-2">💡 Utilisez &quot;Refresh&quot; pour actualiser les données depuis BigQuery. Les tendances compareront la période sélectionnée avec la précédente.</p>
+          </div>
+        )}
       </div>
       
       {/* Insight Global */}
