@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS `moverz-dashboard.analytics_core.errors_404_urls` (
   status STRING NOT NULL, -- '404' | '410'
 
   -- Métadatas
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+  created_at TIMESTAMP
 ) PARTITION BY DATE(scan_date)
 CLUSTER BY site, path
 OPTIONS(

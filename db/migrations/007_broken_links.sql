@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS `moverz-dashboard.analytics_core.broken_links` (
   target_url STRING NOT NULL, -- URL cassée (404/410)
 
   -- Métadonnées
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP()
+  created_at TIMESTAMP
 ) PARTITION BY DATE(scan_date)
 CLUSTER BY site, source_url
 OPTIONS(
@@ -28,9 +28,7 @@ OPTIONS(
   partition_expiration_days=730
 );
 
--- Index pour queries rapides
-CREATE INDEX IF NOT EXISTS idx_broken_links_site_date
-ON `moverz-dashboard.analytics_core.broken_links`(site, scan_date);
+-- NOTE: Index non supporté par BigQuery (utiliser CLUSTER BY)
 
 -- ========================================
 -- FIN MIGRATION 007
