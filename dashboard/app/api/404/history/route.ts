@@ -38,14 +38,29 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('API /404/history error:', error)
-    // Log plus détaillé pour debug
-    console.error('Full error:', JSON.stringify(error, null, 2))
+    console.error('Stack:', error.stack)
+    console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
     
-    // Retourner un succès avec données vides pour éviter crash UI
-    // Le frontend affichera le message "Aucune donnée historique disponible"
+    // En production, retourner succès avec données vides pour éviter crash UI
+    // En dev, retourner erreur pour faciliter le debug
     const sp = request.nextUrl.searchParams
     const days = parseInt(sp.get('days') || '30', 10)
     const mode = (sp.get('mode') || 'last').toLowerCase()
+    
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.json({
+        success: false,
+        data: {
+          evolution: [],
+          lastScan: null,
+        },
+        meta: { days, count: 0, mode },
+        error: error.message,
+        stack: error.stack,
+      }, { status: 500 })
+    }
+    
+    // Production : masquer l'erreur pour l'UI
     return NextResponse.json({
       success: true,
       data: {

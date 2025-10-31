@@ -417,7 +417,9 @@ export async function POST(request: NextRequest) {
             console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
           }
         } catch (error: any) {
-          console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error.message)
+          console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error)
+          console.error('Stack:', error.stack)
+          console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
           // Ne pas faire échouer le crawl si l'écriture BigQuery échoue
         }
         

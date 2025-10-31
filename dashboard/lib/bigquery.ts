@@ -212,13 +212,14 @@ export interface Error404Evolution {
 }
 
 export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
+  // Convertir scan_date (ISO string) en TIMESTAMP explicitement
   const query = `
     INSERT INTO \`${projectId}.${dataset}.errors_404_history\` (
       id, scan_date, total_sites, total_pages_checked, total_errors_404,
       sites_results, crawl_duration_seconds
     )
     VALUES (
-      @id, @scan_date, @total_sites, @total_pages_checked, @total_errors_404,
+      @id, TIMESTAMP(@scan_date), @total_sites, @total_pages_checked, @total_errors_404,
       @sites_results, @crawl_duration_seconds
     )
   `
@@ -227,7 +228,7 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
     query,
     params: {
       id: entry.id,
-      scan_date: entry.scan_date,
+      scan_date: entry.scan_date, // ISO string: "2025-01-15T14:30:00.000Z"
       total_sites: entry.total_sites,
       total_pages_checked: entry.total_pages_checked,
       total_errors_404: entry.total_errors_404,
@@ -236,7 +237,19 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
     },
   }
   
-  await bigquery.query(options)
+  try {
+    await bigquery.query(options)
+  } catch (error: any) {
+    console.error('[BigQuery insertError404History] Error:', error)
+    console.error('[BigQuery insertError404History] Entry:', {
+      id: entry.id,
+      scan_date: entry.scan_date,
+      total_sites: entry.total_sites,
+      total_pages_checked: entry.total_pages_checked,
+      total_errors_404: entry.total_errors_404,
+    })
+    throw error // Re-lancer pour que le catch du crawl route puisse logger
+  }
 }
 
 export async function getError404Evolution(days: number = 30): Promise<Error404Evolution[]> {
