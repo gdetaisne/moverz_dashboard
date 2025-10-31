@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import * as cheerio from 'cheerio'
-import { insertError404History, saveBrokenLinks, saveError404UrlsScan, saveBrokenLinksScan } from '@/lib/json-storage'
+import { insertError404History, insertError404UrlsScan, insertBrokenLinksScan } from '@/lib/bigquery'
 import { randomUUID } from 'crypto'
 
 /**
@@ -360,27 +360,14 @@ export async function POST(request: NextRequest) {
         
         console.log(`✅ Crawl completed (PARALLEL): ${totalPages} pages, ${totalErrors} errors (${totalDuration}s)`)
         
-        // Sauvegarder les liens cassés persistants
-        try {
-          const brokenLinksBySite = results.map(r => ({
-            site: r.site,
-            broken_links: r.broken_links_list || [],
-            last_scan_date: r.scan_date
-          }))
-          
-          await saveBrokenLinks(brokenLinksBySite)
-          console.log('✅ Liens cassés sauvegardés pour le prochain scan')
-        } catch (error: any) {
-          console.error('⚠️ Erreur lors de la sauvegarde des liens cassés:', error.message)
-        }
-        
-        // Enregistrer dans la mémoire JSON locale (historique + URLs + liens par scan)
+        // Enregistrer dans BigQuery (historique + URLs + liens par scan)
         try {
           const scanId = randomUUID()
           const now = new Date().toISOString()
           
-          console.log('💾 Enregistrement dans la mémoire JSON locale...')
+          console.log('💾 Enregistrement dans BigQuery...')
           
+          // 1. Historique
           await insertError404History({
             id: scanId,
             scan_date: now,
@@ -394,41 +381,44 @@ export async function POST(request: NextRequest) {
             })),
             crawl_duration_seconds: totalDuration,
           })
-          
-          console.log(`✅ Historique JSON enregistré (ID: ${scanId})`)
+          console.log(`✅ Historique BigQuery enregistré (ID: ${scanId})`)
 
-          // Sauvegarder URLs 404/410 détaillées
+          // 2. URLs 404/410 détaillées
           const urlEntries = results.flatMap(r =>
             (r.errors_detailed || []).map(e => ({ site: r.site, path: e.path, status: e.status }))
           )
-          await saveError404UrlsScan({
-            scan_id: scanId,
-            scan_date: now,
-            commit_sha,
-            branch,
-            actor,
-            repo,
-            entries: urlEntries,
-          })
-          console.log(`✅ URLs 404/410 sauvegardées (${urlEntries.length})`)
+          if (urlEntries.length > 0) {
+            await insertError404UrlsScan({
+              scan_id: scanId,
+              scan_date: now,
+              commit_sha,
+              branch,
+              actor,
+              repo,
+              entries: urlEntries,
+            })
+            console.log(`✅ URLs 404/410 sauvegardées (${urlEntries.length})`)
+          }
 
-          // Sauvegarder liens cassés visibles par scan (source -> target)
+          // 3. Liens cassés visibles par scan (source -> target)
           const brokenLinksEntries = results.flatMap(r =>
             (r.broken_links_list || []).map(l => ({ site: r.site, source: l.source, target: l.target }))
           )
-          await saveBrokenLinksScan({
-            scan_id: scanId,
-            scan_date: now,
-            commit_sha,
-            branch,
-            actor,
-            repo,
-            links: brokenLinksEntries,
-          })
-          console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
+          if (brokenLinksEntries.length > 0) {
+            await insertBrokenLinksScan({
+              scan_id: scanId,
+              scan_date: now,
+              commit_sha,
+              branch,
+              actor,
+              repo,
+              links: brokenLinksEntries,
+            })
+            console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
+          }
         } catch (error: any) {
-          console.error('⚠️ Erreur lors de l\'enregistrement dans la mémoire JSON locale:', error.message)
-          // Ne pas faire échouer le crawl si l'écriture JSON échoue
+          console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error.message)
+          // Ne pas faire échouer le crawl si l'écriture BigQuery échoue
         }
         
         // Send completion event

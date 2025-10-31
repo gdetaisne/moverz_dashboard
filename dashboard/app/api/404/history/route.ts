@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getError404Evolution, getLastError404Scan, getLastScansAsEvolution } from '@/lib/json-storage'
+import { getError404Evolution, getLastError404Scan, getLastScansAsEvolution } from '@/lib/bigquery'
 
 export const dynamic = 'force-dynamic'
 

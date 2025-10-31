@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBrokenLinksDelta, getError404Delta } from '@/lib/json-storage'
+import { getBrokenLinksDelta, getError404Delta } from '@/lib/bigquery'
 
 export const dynamic = 'force-dynamic'
 

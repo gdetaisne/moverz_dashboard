@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getLastReconstructedScan } from '@/lib/json-storage'
+import { getLastReconstructedScan } from '@/lib/bigquery'
 
 export const dynamic = 'force-dynamic'
 
