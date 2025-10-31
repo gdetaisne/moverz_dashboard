@@ -242,13 +242,13 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
 export async function getError404Evolution(days: number = 30): Promise<Error404Evolution[]> {
   const query = `
     SELECT 
-      DATE(scan_date) as date,
+      FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date))) as date,
       COUNT(*) as nb_scans,
-      AVG(total_pages_checked) as avg_pages_checked,
-      AVG(total_errors_404) as avg_errors_404,
-      MAX(total_errors_404) as max_errors_404,
-      MIN(total_errors_404) as min_errors_404,
-      AVG(crawl_duration_seconds) as avg_duration_seconds
+      CAST(AVG(total_pages_checked) AS INT64) as avg_pages_checked,
+      CAST(AVG(total_errors_404) AS INT64) as avg_errors_404,
+      CAST(MAX(total_errors_404) AS INT64) as max_errors_404,
+      CAST(MIN(total_errors_404) AS INT64) as min_errors_404,
+      CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
     FROM \`${projectId}.${dataset}.errors_404_history\`
     WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
     GROUP BY DATE(scan_date)
@@ -256,7 +256,17 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
   `
   
   const [rows] = await bigquery.query({ query })
-  return rows as Error404Evolution[]
+  
+  // Convertir les résultats avec types corrects
+  return (rows || []).map(row => ({
+    date: String(row.date || ''),
+    nb_scans: Number(row.nb_scans || 0),
+    avg_pages_checked: Number(row.avg_pages_checked || 0),
+    avg_errors_404: Number(row.avg_errors_404 || 0),
+    max_errors_404: Number(row.max_errors_404 || 0),
+    min_errors_404: Number(row.min_errors_404 || 0),
+    avg_duration_seconds: Number(row.avg_duration_seconds || 0),
+  }))
 }
 
 export async function getLastError404Scan(): Promise<Error404HistoryEntry | null> {
@@ -652,13 +662,13 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
 export async function getLastScansAsEvolution(limit: number = 20): Promise<Error404Evolution[]> {
   const query = `
     SELECT 
-      scan_date as date,
+      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
       1 as nb_scans,
-      total_pages_checked as avg_pages_checked,
-      total_errors_404 as avg_errors_404,
-      total_errors_404 as max_errors_404,
-      total_errors_404 as min_errors_404,
-      crawl_duration_seconds as avg_duration_seconds
+      CAST(total_pages_checked AS INT64) as avg_pages_checked,
+      CAST(total_errors_404 AS INT64) as avg_errors_404,
+      CAST(total_errors_404 AS INT64) as max_errors_404,
+      CAST(total_errors_404 AS INT64) as min_errors_404,
+      CAST(crawl_duration_seconds AS INT64) as avg_duration_seconds
     FROM \`${projectId}.${dataset}.errors_404_history\`
     ORDER BY scan_date DESC
     LIMIT @limit
@@ -669,6 +679,17 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
     params: { limit },
   })
   
-  return (rows as Error404Evolution[]).reverse()
+  // Convertir les résultats et inverser l'ordre (plus ancien en premier)
+  const results = (rows || []).map(row => ({
+    date: String(row.date || ''),
+    nb_scans: Number(row.nb_scans || 1),
+    avg_pages_checked: Number(row.avg_pages_checked || 0),
+    avg_errors_404: Number(row.avg_errors_404 || 0),
+    max_errors_404: Number(row.max_errors_404 || 0),
+    min_errors_404: Number(row.min_errors_404 || 0),
+    avg_duration_seconds: Number(row.avg_duration_seconds || 0),
+  }))
+  
+  return results.reverse()
 }
 

@@ -22,7 +22,11 @@ export async function GET(request: NextRequest) {
     // Récupérer le dernier scan
     const lastScan = await getLastError404Scan()
     
-    console.log(`[404/history] Loaded ${evolution?.length || 0} evolution entries, lastScan: ${lastScan ? 'exists' : 'null'}`)
+    console.log(`[404/history] Mode: ${mode}, Loaded ${evolution?.length || 0} evolution entries, lastScan: ${lastScan ? 'exists' : 'null'}`)
+    if (evolution && evolution.length > 0) {
+      console.log(`[404/history] First entry:`, JSON.stringify(evolution[0], null, 2))
+      console.log(`[404/history] Last entry:`, JSON.stringify(evolution[evolution.length - 1], null, 2))
+    }
     
     return NextResponse.json({
       success: true,
