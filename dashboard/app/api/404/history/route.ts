@@ -23,9 +23,20 @@ export async function GET(request: NextRequest) {
     const lastScan = await getLastError404Scan()
     
     console.log(`[404/history] Mode: ${mode}, Loaded ${evolution?.length || 0} evolution entries, lastScan: ${lastScan ? 'exists' : 'null'}`)
+    console.log(`[404/history] Evolution type:`, typeof evolution, Array.isArray(evolution) ? 'array' : 'not array')
     if (evolution && evolution.length > 0) {
       console.log(`[404/history] First entry:`, JSON.stringify(evolution[0], null, 2))
       console.log(`[404/history] Last entry:`, JSON.stringify(evolution[evolution.length - 1], null, 2))
+      console.log(`[404/history] All entries:`, JSON.stringify(evolution, null, 2))
+    } else {
+      console.warn(`[404/history] No evolution data returned!`, {
+        evolution,
+        evolutionType: typeof evolution,
+        isArray: Array.isArray(evolution),
+        mode,
+        days,
+        count,
+      })
     }
     
     return NextResponse.json({

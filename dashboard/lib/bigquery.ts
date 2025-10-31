@@ -253,33 +253,46 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
 }
 
 export async function getError404Evolution(days: number = 30): Promise<Error404Evolution[]> {
-  const query = `
-    SELECT 
-      FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date))) as date,
-      COUNT(*) as nb_scans,
-      CAST(AVG(total_pages_checked) AS INT64) as avg_pages_checked,
-      CAST(AVG(total_errors_404) AS INT64) as avg_errors_404,
-      CAST(MAX(total_errors_404) AS INT64) as max_errors_404,
-      CAST(MIN(total_errors_404) AS INT64) as min_errors_404,
-      CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
-    FROM \`${projectId}.${dataset}.errors_404_history\`
-    WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
-    GROUP BY DATE(scan_date)
-    ORDER BY date DESC
-  `
-  
-  const [rows] = await bigquery.query({ query })
-  
-  // Convertir les résultats avec types corrects
-  return (rows || []).map(row => ({
-    date: String(row.date || ''),
-    nb_scans: Number(row.nb_scans || 0),
-    avg_pages_checked: Number(row.avg_pages_checked || 0),
-    avg_errors_404: Number(row.avg_errors_404 || 0),
-    max_errors_404: Number(row.max_errors_404 || 0),
-    min_errors_404: Number(row.min_errors_404 || 0),
-    avg_duration_seconds: Number(row.avg_duration_seconds || 0),
-  }))
+  try {
+    console.log(`[BigQuery getError404Evolution] Querying with days=${days}`)
+    
+    const query = `
+      SELECT 
+        FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date))) as date,
+        COUNT(*) as nb_scans,
+        CAST(AVG(total_pages_checked) AS INT64) as avg_pages_checked,
+        CAST(AVG(total_errors_404) AS INT64) as avg_errors_404,
+        CAST(MAX(total_errors_404) AS INT64) as max_errors_404,
+        CAST(MIN(total_errors_404) AS INT64) as min_errors_404,
+        CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
+      FROM \`${projectId}.${dataset}.errors_404_history\`
+      WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
+      GROUP BY DATE(scan_date)
+      ORDER BY date DESC
+    `
+    
+    console.log(`[BigQuery getError404Evolution] Executing query on ${projectId}.${dataset}.errors_404_history`)
+    const [rows] = await bigquery.query({ query })
+    console.log(`[BigQuery getError404Evolution] Query returned ${rows?.length || 0} rows`)
+    
+    // Convertir les résultats avec types corrects
+    const results = (rows || []).map(row => ({
+      date: String(row.date || ''),
+      nb_scans: Number(row.nb_scans || 0),
+      avg_pages_checked: Number(row.avg_pages_checked || 0),
+      avg_errors_404: Number(row.avg_errors_404 || 0),
+      max_errors_404: Number(row.max_errors_404 || 0),
+      min_errors_404: Number(row.min_errors_404 || 0),
+      avg_duration_seconds: Number(row.avg_duration_seconds || 0),
+    }))
+    
+    console.log(`[BigQuery getError404Evolution] Converted ${results.length} results`, results.length > 0 ? results[0] : 'no data')
+    return results
+  } catch (error: any) {
+    console.error(`[BigQuery getError404Evolution] Error:`, error)
+    console.error(`[BigQuery getError404Evolution] Stack:`, error.stack)
+    throw error
+  }
 }
 
 export async function getLastError404Scan(): Promise<Error404HistoryEntry | null> {
@@ -673,36 +686,47 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
 }
 
 export async function getLastScansAsEvolution(limit: number = 20): Promise<Error404Evolution[]> {
-  const query = `
-    SELECT 
-      FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
-      1 as nb_scans,
-      CAST(total_pages_checked AS INT64) as avg_pages_checked,
-      CAST(total_errors_404 AS INT64) as avg_errors_404,
-      CAST(total_errors_404 AS INT64) as max_errors_404,
-      CAST(total_errors_404 AS INT64) as min_errors_404,
-      CAST(crawl_duration_seconds AS INT64) as avg_duration_seconds
-    FROM \`${projectId}.${dataset}.errors_404_history\`
-    ORDER BY scan_date DESC
-    LIMIT @limit
-  `
-  
-  const [rows] = await bigquery.query({
-    query,
-    params: { limit },
-  })
-  
-  // Convertir les résultats et inverser l'ordre (plus ancien en premier)
-  const results = (rows || []).map(row => ({
-    date: String(row.date || ''),
-    nb_scans: Number(row.nb_scans || 1),
-    avg_pages_checked: Number(row.avg_pages_checked || 0),
-    avg_errors_404: Number(row.avg_errors_404 || 0),
-    max_errors_404: Number(row.max_errors_404 || 0),
-    min_errors_404: Number(row.min_errors_404 || 0),
-    avg_duration_seconds: Number(row.avg_duration_seconds || 0),
-  }))
-  
-  return results.reverse()
+  try {
+    console.log(`[BigQuery getLastScansAsEvolution] Querying with limit=${limit}`)
+    
+    const query = `
+      SELECT 
+        FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
+        1 as nb_scans,
+        CAST(total_pages_checked AS INT64) as avg_pages_checked,
+        CAST(total_errors_404 AS INT64) as avg_errors_404,
+        CAST(total_errors_404 AS INT64) as max_errors_404,
+        CAST(total_errors_404 AS INT64) as min_errors_404,
+        CAST(crawl_duration_seconds AS INT64) as avg_duration_seconds
+      FROM \`${projectId}.${dataset}.errors_404_history\`
+      ORDER BY scan_date DESC
+      LIMIT @limit
+    `
+    
+    console.log(`[BigQuery getLastScansAsEvolution] Executing query on ${projectId}.${dataset}.errors_404_history`)
+    const [rows] = await bigquery.query({
+      query,
+      params: { limit },
+    })
+    console.log(`[BigQuery getLastScansAsEvolution] Query returned ${rows?.length || 0} rows`)
+    
+    // Convertir les résultats et inverser l'ordre (plus ancien en premier)
+    const results = (rows || []).map(row => ({
+      date: String(row.date || ''),
+      nb_scans: Number(row.nb_scans || 1),
+      avg_pages_checked: Number(row.avg_pages_checked || 0),
+      avg_errors_404: Number(row.avg_errors_404 || 0),
+      max_errors_404: Number(row.max_errors_404 || 0),
+      min_errors_404: Number(row.min_errors_404 || 0),
+      avg_duration_seconds: Number(row.avg_duration_seconds || 0),
+    }))
+    
+    console.log(`[BigQuery getLastScansAsEvolution] Converted ${results.length} results`, results.length > 0 ? results[0] : 'no data')
+    return results.reverse()
+  } catch (error: any) {
+    console.error(`[BigQuery getLastScansAsEvolution] Error:`, error)
+    console.error(`[BigQuery getLastScansAsEvolution] Stack:`, error.stack)
+    throw error
+  }
 }
 

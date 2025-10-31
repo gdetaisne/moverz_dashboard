@@ -143,18 +143,37 @@ export default function NotFoundPage() {
     try {
       // Mode 'evolution' pour agrégation quotidienne (meilleure visualisation)
       const response = await fetch('/dashboard-api/404/history?days=30&mode=evolution')
+      
+      if (!response.ok) {
+        console.error('[404] History API not OK:', response.status, response.statusText)
+        setHistoryData([])
+        return
+      }
+      
       const data = await response.json()
+      
+      console.log('[404] History API response:', {
+        success: data.success,
+        hasData: !!data.data,
+        hasEvolution: !!data.data?.evolution,
+        evolutionType: Array.isArray(data.data?.evolution) ? 'array' : typeof data.data?.evolution,
+        evolutionLength: Array.isArray(data.data?.evolution) ? data.data.evolution.length : 'N/A',
+        evolutionSample: Array.isArray(data.data?.evolution) && data.data.evolution.length > 0 ? data.data.evolution[0] : null,
+        meta: data.meta,
+        error: data.error,
+      })
       
       // Toujours définir historyData, même si c'est un tableau vide
       if (data.success && data.data && Array.isArray(data.data.evolution)) {
+        console.log('[404] Setting historyData:', data.data.evolution.length, 'entries')
         setHistoryData(data.data.evolution)
       } else {
         // Si la structure n'est pas celle attendue, initialiser avec un tableau vide
-        console.warn('Unexpected API response structure:', data)
+        console.warn('[404] Unexpected API response structure:', data)
         setHistoryData([])
       }
     } catch (error) {
-      console.error('Failed to load history:', error)
+      console.error('[404] Failed to load history:', error)
       setHistoryData([]) // S'assurer qu'on a toujours un tableau
     } finally {
       setLoadingHistory(false)
