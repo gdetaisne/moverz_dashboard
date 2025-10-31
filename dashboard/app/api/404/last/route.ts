@@ -11,11 +11,22 @@ export async function GET(_request: NextRequest) {
   try {
     const payload = await getLastReconstructedScan()
     if (!payload) {
-      return NextResponse.json({ success: false, message: 'Aucun scan disponible' }, { status: 404 })
+      // Retourner succès avec données vides plutôt qu'erreur 404
+      return NextResponse.json({
+        success: true,
+        data: null,
+        message: 'Aucun scan disponible. Lancez un scan pour commencer.',
+      })
     }
     return NextResponse.json({ success: true, data: payload })
   } catch (e: any) {
-    return NextResponse.json({ success: false, message: e.message }, { status: 500 })
+    console.error('[404/last] Error:', e)
+    // Retourner succès avec données vides pour éviter crash UI
+    return NextResponse.json({
+      success: true,
+      data: null,
+      message: e.message || 'Erreur lors de la récupération du dernier scan',
+    })
   }
 }
 

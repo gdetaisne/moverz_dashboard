@@ -615,9 +615,8 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
       WHERE scan_id = @scan_id
     )
     SELECT 
-      ARRAY_AGG(STRUCT(site, path) ORDER BY site, path LIMIT 1000) as urls,
-      ARRAY_AGG(STRUCT(site, source_url as source, target_url as target) ORDER BY site, source_url LIMIT 1000) as links
-    FROM urls, links
+      COALESCE((SELECT ARRAY_AGG(STRUCT(site, path) ORDER BY site, path LIMIT 1000) FROM urls), []) as urls,
+      COALESCE((SELECT ARRAY_AGG(STRUCT(site, source_url as source, target_url as target) ORDER BY site, source_url LIMIT 1000) FROM links), []) as links
   `
   
   const [detailRows] = await bigquery.query({

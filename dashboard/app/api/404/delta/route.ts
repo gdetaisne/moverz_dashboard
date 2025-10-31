@@ -15,12 +15,26 @@ export async function GET(request: NextRequest) {
 
     // Calculer les deux deltas (liens cassés visibles et URLs 404)
     const [brokenLinksDelta, urlsDelta] = await Promise.all([
-      getBrokenLinksDelta({ from, to }),
-      getError404Delta({ from, to }),
+      getBrokenLinksDelta({ from, to }).catch(err => {
+        console.error('[404/delta] Error fetching broken links delta:', err)
+        return null
+      }),
+      getError404Delta({ from, to }).catch(err => {
+        console.error('[404/delta] Error fetching 404 delta:', err)
+        return null
+      }),
     ])
 
     if (!brokenLinksDelta && !urlsDelta) {
-      return NextResponse.json({ success: false, message: 'Delta indisponible (pas assez de scans)' }, { status: 404 })
+      // Retourner succès avec données vides plutôt qu'erreur 404
+      return NextResponse.json({
+        success: true,
+        data: {
+          broken_links: null,
+          urls_404: null,
+        },
+        message: 'Delta indisponible (pas assez de scans - minimum 2 scans requis)',
+      })
     }
 
     return NextResponse.json({
@@ -31,7 +45,16 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    return NextResponse.json({ success: false, message: error.message }, { status: 500 })
+    console.error('[404/delta] Unexpected error:', error)
+    // Retourner succès avec données vides pour éviter crash UI
+    return NextResponse.json({
+      success: true,
+      data: {
+        broken_links: null,
+        urls_404: null,
+      },
+      message: error.message || 'Erreur lors du calcul du delta',
+    })
   }
 }
 
