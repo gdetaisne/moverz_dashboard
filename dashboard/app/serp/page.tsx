@@ -12,9 +12,21 @@ type SerpPreview = {
   hasFAQ: boolean
   hasAggregateRating: boolean
   hasBreadcrumb: boolean
+  hasHowTo: boolean
+  hasArticle: boolean
+  hasVideo: boolean
+  hasLocalBusiness: boolean
   impressions: number
   sharePct: number
   intent: string | null
+  intentDeclared: string | null
+  intentInferred: string | null
+  intentMatchScore: number
+  intentSource: 'meta' | 'jsonld' | 'inferred' | null
+  scoreLength: number
+  scoreRichResults: number
+  ctr: number | null
+  position: number | null
   // Métadonnées de fiabilité
   fetchSuccess: boolean
   fetchStatusCode: number | null
@@ -111,8 +123,11 @@ export default function SerpPage() {
                 <li><strong>Title</strong> : balise &lt;title&gt;</li>
                 <li><strong>Description</strong> : meta tag &lt;meta name=&quot;description&quot;&gt;</li>
                 <li><strong>Favicon</strong> : balise &lt;link rel=&quot;icon&quot;&gt;</li>
-                <li><strong>FAQ/Rating/Breadcrumb</strong> : détectés via parsing des blocs JSON-LD (&lt;script type=&quot;application/ld+json&quot;&gt;)</li>
-                <li><strong>Intent</strong> : extrait depuis meta tags ou JSON-LD (champs &quot;intent&quot; ou &quot;searchIntent&quot;)</li>
+                <li><strong>FAQ/Rating/Breadcrumb/HowTo/Article/Video/LocalBusiness</strong> : détectés via parsing des blocs JSON-LD (&lt;script type=&quot;application/ld+json&quot;&gt;)</li>
+                <li><strong>Intent</strong> : extrait depuis meta tags ou JSON-LD (champs &quot;intent&quot; ou &quot;searchIntent&quot;). Si non déclaré, déduit du contenu (URL, titre, description). Source affichée à côté de l&apos;intent.</li>
+                <li><strong>Intent Match Score</strong> : comparaison entre intent déclaré vs intent déduit. 100% = match parfait, 0% = mismatch, 50% = incertain.</li>
+                <li><strong>Length Score</strong> : binaire conservateur (titre ≤55 chars, description ≤150 chars) pour éviter troncature SERP.</li>
+                <li><strong>Rich Results Score</strong> : pourcentage basé sur le nombre de types JSON-LD détectés (7 max).</li>
               </ul>
             </div>
             
@@ -217,19 +232,41 @@ export default function SerpPage() {
                           {row.description || '(meta description manquante)'}
                         </div>
                         {row.intent && (
-                          <div className="mt-1">
+                          <div className="mt-1 flex items-center gap-1 flex-wrap">
                             <span className="text-xs px-2 py-0.5 rounded bg-purple-100 text-purple-700 font-medium">
-                              🎯 Intent: {row.intent}
+                              🎯 {row.intent}
                             </span>
+                            <span className="text-xs text-slate-500">
+                              {row.intentSource === 'meta' && '(meta tag)'}
+                              {row.intentSource === 'jsonld' && '(présent dans JSON-LD)'}
+                              {row.intentSource === 'inferred' && '(déduit, non présent dans JSON)'}
+                              {!row.intentSource && '(à préciser dans le rapport)'}
+                            </span>
+                            {row.intentMatchScore < 100 && row.intentDeclared && row.intentInferred && (
+                              <span className="text-xs text-orange-600">
+                                ⚠️ Mismatch déclaré vs déduit
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
                     </div>
                   </td>
                   <td className="py-3 pr-4">
-                    <a href={row.url} className="text-blue-700 underline break-all" target="_blank" rel="noreferrer">
-                      {row.url}
-                    </a>
+                    <div className="space-y-1">
+                      <a href={row.url} className="text-blue-700 underline break-all text-xs" target="_blank" rel="noreferrer">
+                        {row.url}
+                      </a>
+                      {row.intent && (
+                        <div className="text-xs">
+                          <span className="text-slate-600">Intent: </span>
+                          <span className="font-medium text-purple-700">{row.intent}</span>
+                          <span className="text-slate-500 ml-1">
+                            ({row.intentSource === 'meta' ? 'meta tag' : row.intentSource === 'jsonld' ? 'présent dans JSON-LD' : row.intentSource === 'inferred' ? 'déduit, non présent dans JSON' : 'source inconnue'})
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </td>
                   <td className="py-3 pr-4 whitespace-nowrap">
                     {Intl.NumberFormat('fr-FR').format(row.impressions || 0)}
@@ -238,10 +275,31 @@ export default function SerpPage() {
                     {(row.sharePct || 0).toFixed(2)}%
                   </td>
                   <td className="py-3 pr-4 text-xs">
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge active={row.hasFAQ}>FAQ</Badge>
-                      <Badge active={row.hasAggregateRating}>Rating</Badge>
-                      <Badge active={row.hasBreadcrumb}>Breadcrumb</Badge>
+                    <div className="space-y-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <Badge active={row.hasFAQ}>FAQ</Badge>
+                        <Badge active={row.hasAggregateRating}>Rating</Badge>
+                        <Badge active={row.hasBreadcrumb}>Breadcrumb</Badge>
+                        <Badge active={row.hasHowTo}>HowTo</Badge>
+                        <Badge active={row.hasArticle}>Article</Badge>
+                        <Badge active={row.hasVideo}>Video</Badge>
+                        <Badge active={row.hasLocalBusiness}>LocalBusiness</Badge>
+                      </div>
+                      {row.scoreLength < 100 && (
+                        <div className="text-orange-600 text-xs mt-1">
+                          ⚠️ Length: {row.scoreLength}% (title ≤55, desc ≤150)
+                        </div>
+                      )}
+                      {row.scoreRichResults > 0 && (
+                        <div className="text-green-600 text-xs">
+                          ✅ Rich Results: {row.scoreRichResults.toFixed(0)}%
+                        </div>
+                      )}
+                      {row.intentMatchScore < 100 && row.intentDeclared && (
+                        <div className="text-orange-600 text-xs">
+                          ⚠️ Intent Match: {row.intentMatchScore}% (déclaré ≠ déduit)
+                        </div>
+                      )}
                     </div>
                   </td>
                 </tr>
