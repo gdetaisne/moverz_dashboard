@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import PageIntro from '@/components/PageIntro'
-import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { AlertTriangle, Search, RefreshCw, ExternalLink, Loader2, Download, TrendingUp, TrendingDown, Minus, Info, ChevronDown, ChevronUp } from 'lucide-react'
 import { formatNumber } from '@/lib/utils'
 import { Error404Evolution } from '@/components/Error404Evolution'
 import { Error404Analysis } from '@/components/Error404Analysis'
@@ -30,6 +30,7 @@ export default function NotFoundPage() {
   const [historyData, setHistoryData] = useState<any[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
   const [showBrokenLinksTable, setShowBrokenLinksTable] = useState(false)
+  const [showCrawlerExplanation, setShowCrawlerExplanation] = useState(false)
   const [delta, setDelta] = useState<any | null>(null)
   const [loadingDelta, setLoadingDelta] = useState(false)
   const [loadingLast, setLoadingLast] = useState(false)
@@ -287,6 +288,94 @@ export default function NotFoundPage() {
             </p>
           )}
         </div>
+      </div>
+      
+      {/* Section Explication Crawler */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg shadow-sm">
+        <button
+          onClick={() => setShowCrawlerExplanation(!showCrawlerExplanation)}
+          className="w-full px-6 py-4 flex items-center justify-between hover:bg-blue-100 transition-colors rounded-lg"
+        >
+          <div className="flex items-center gap-3">
+            <Info className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-bold text-slate-800">🕷️ Comment fonctionne le crawler ?</h2>
+          </div>
+          {showCrawlerExplanation ? (
+            <ChevronUp className="h-5 w-5 text-blue-600" />
+          ) : (
+            <ChevronDown className="h-5 w-5 text-blue-600" />
+          )}
+        </button>
+        
+        {showCrawlerExplanation && (
+          <div className="px-6 pb-6 space-y-4">
+            <p className="text-slate-700 text-sm">
+              Le crawler analyse de manière automatique tous vos sites pour détecter les erreurs 404 et les liens cassés visibles.
+            </p>
+            
+            <div className="bg-white rounded-lg p-5 border border-blue-100">
+              <h3 className="font-semibold text-slate-900 mb-3 text-base">Processus de crawl :</h3>
+              <ul className="space-y-3 text-slate-700 text-sm">
+                <li className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-base mt-0.5">1.</span>
+                  <div>
+                    <span className="font-semibold">Démarrage depuis la page d&apos;accueil</span>
+                    <p className="text-slate-600 mt-0.5">Le crawler commence par la page d&apos;accueil de chaque site pour établir une carte complète.</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-base mt-0.5">2.</span>
+                  <div>
+                    <span className="font-semibold">Parsing des liens internes</span>
+                    <p className="text-slate-600 mt-0.5">Analyse du HTML de chaque page pour extraire tous les liens internes (balises &lt;a href=&quot;...&quot;&gt;).</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-base mt-0.5">3.</span>
+                  <div>
+                    <span className="font-semibold">Crawl récursif</span>
+                    <p className="text-slate-600 mt-0.5">Suit chaque lien trouvé récursivement pour explorer toutes les pages accessibles (limite : 300 pages par site).</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-base mt-0.5">4.</span>
+                  <div>
+                    <span className="font-semibold">Détection des erreurs</span>
+                    <p className="text-slate-600 mt-0.5">Enregistre toutes les URLs qui retournent un code HTTP 404 (page non trouvée).</p>
+                  </div>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-blue-600 font-bold text-base mt-0.5">5.</span>
+                  <div>
+                    <span className="font-semibold">Liens cassés visibles</span>
+                    <p className="text-slate-600 mt-0.5">Détecte les liens pointant vers des pages 404 qui sont visibles dans le contenu HTML (différent des redirections serveur).</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                <h4 className="font-semibold text-slate-900 mb-2 text-sm">⚡ Performance</h4>
+                <p className="text-slate-600 text-sm">
+                  Crawl parallèle de tous les sites simultanément. Durée typique : <strong className="text-green-600">30-60 secondes</strong> pour analyser 11 sites.
+                </p>
+              </div>
+              <div className="bg-white rounded-lg p-4 border border-blue-100">
+                <h4 className="font-semibold text-slate-900 mb-2 text-sm">💾 Stockage</h4>
+                <p className="text-slate-600 text-sm">
+                  Tous les résultats sont enregistrés dans <strong>BigQuery</strong> pour permettre l&apos;historique et le suivi dans le temps.
+                </p>
+              </div>
+            </div>
+            
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-sm text-amber-800">
+                <strong>💡 Astuce :</strong> Le pourcentage &quot;Pages Revues&quot; indique la progression du crawl. Si certaines pages ne sont pas analysées (limite de 300 pages/site atteinte), un avertissement apparaît.
+              </p>
+            </div>
+          </div>
+        )}
       </div>
       
       {/* Delta Bandeau */}
