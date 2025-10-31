@@ -49,7 +49,7 @@ function extractBetween(content: string, start: string, end: string): string | n
   return content.slice(s + start.length, e)
 }
 
-function inferIntentFromContent(
+export function inferIntentFromContent(
   pageUrl: string,
   title: string | null,
   description: string | null
@@ -83,7 +83,7 @@ function inferIntentFromContent(
   return null // Incertain
 }
 
-function calculateIntentMatchScore(declared: string | null, inferred: string | null): number {
+export function calculateIntentMatchScore(declared: string | null, inferred: string | null): number {
   if (!declared && !inferred) return 50 // Incertain (pas assez de données)
   if (!declared) return 50 // Intent non déclaré = incertain
   if (!inferred) return 50 // Impossible à déduire = incertain
@@ -91,7 +91,7 @@ function calculateIntentMatchScore(declared: string | null, inferred: string | n
   return declared.toLowerCase() === inferred.toLowerCase() ? 100 : 0
 }
 
-function calculateLengthScore(title: string | null, description: string | null): number {
+export function calculateLengthScore(title: string | null, description: string | null): number {
   // Seuils conservateurs (éviter troncature)
   const TITLE_MAX = 55 // Google tronque souvent avant 60
   const DESC_MAX = 150 // Idem pour 155
