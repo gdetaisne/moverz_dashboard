@@ -318,23 +318,38 @@ export default function NotFoundPage() {
         </div>
         
         <div className="flex flex-col items-end gap-2">
-          <button
-            onClick={runScan}
-            disabled={scanning}
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
-          >
-            {scanning ? (
-              <>
-                <RefreshCw className="h-4 w-4 animate-spin" />
-                Crawl en cours...
-              </>
-            ) : (
-              <>
-                <Search className="h-4 w-4" />
-                Analyser les 404
-              </>
-            )}
-          </button>
+          <div className="flex items-center gap-3">
+            {/* Sélecteur de site */}
+            <select
+              value={selectedSite}
+              onChange={(e) => setSelectedSite(e.target.value)}
+              disabled={scanning}
+              className="px-3 py-2 border border-slate-300 rounded-lg bg-white text-slate-700 font-medium disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500"
+            >
+              <option value="all">Tous les sites ({SITES.length})</option>
+              {SITES.map(site => (
+                <option key={site} value={site}>{site}</option>
+              ))}
+            </select>
+            
+            <button
+              onClick={runScan}
+              disabled={scanning}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-orange-600 text-white font-semibold rounded-lg hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-sm hover:shadow-md"
+            >
+              {scanning ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Crawl en cours...
+                </>
+              ) : (
+                <>
+                  <Search className="h-4 w-4" />
+                  Analyser les 404
+                </>
+              )}
+            </button>
+          </div>
           
           {lastScan && (
             <p className="text-sm text-slate-500">
