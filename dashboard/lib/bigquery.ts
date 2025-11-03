@@ -213,6 +213,7 @@ export interface Error404Evolution {
 
 export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
   // Convertir scan_date (ISO string) en TIMESTAMP explicitement
+  // Utiliser PARSE_JSON pour convertir la STRING JSON en type JSON BigQuery
   const query = `
     INSERT INTO \`${projectId}.${dataset}.errors_404_history\` (
       id, scan_date, total_sites, total_pages_checked, total_errors_404,
@@ -220,7 +221,7 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
     )
     VALUES (
       @id, TIMESTAMP(@scan_date), @total_sites, @total_pages_checked, @total_errors_404,
-      @sites_results, @crawl_duration_seconds
+      PARSE_JSON(@sites_results), @crawl_duration_seconds
     )
   `
   
@@ -232,7 +233,7 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
       total_sites: entry.total_sites,
       total_pages_checked: entry.total_pages_checked,
       total_errors_404: entry.total_errors_404,
-      sites_results: JSON.stringify(entry.sites_results),
+      sites_results: JSON.stringify(entry.sites_results), // Convertir en STRING JSON, puis PARSE_JSON dans SQL
       crawl_duration_seconds: entry.crawl_duration_seconds,
     },
   }
