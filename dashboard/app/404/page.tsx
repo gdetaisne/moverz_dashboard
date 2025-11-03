@@ -162,8 +162,8 @@ export default function NotFoundPage() {
   async function loadHistory() {
     setLoadingHistory(true)
     try {
-      // Agrégation quotidienne (évolution dans le temps)
-      const response = await fetch('/api/404/history?days=30&mode=evolution')
+      // Un point par scan (non agrégé) pour une lecture horizontale scan→scan
+      const response = await fetch('/api/404/history?mode=last&count=60')
       
       if (!response.ok) {
         console.error('[404] History API not OK:', response.status, response.statusText)
