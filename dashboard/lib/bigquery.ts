@@ -492,18 +492,34 @@ export interface Error404DeltaResult {
 }
 
 export async function getError404Delta(params: { from?: string; to?: string }): Promise<Error404DeltaResult | null> {
-  // Récupérer les 2 derniers scans depuis l'historique (même si 0 URLs 404)
-  const scanQuery = `
-    SELECT id, scan_date
-    FROM \`${projectId}.${dataset}.errors_404_history\`
+  // 1) Essayer de prendre les 2 derniers scan_id présents dans errors_404_urls
+  const urlsScanQuery = `
+    SELECT DISTINCT scan_id, MAX(scan_date) AS scan_date
+    FROM \`${projectId}.${dataset}.errors_404_urls\`
+    GROUP BY scan_id
     ORDER BY scan_date DESC
     LIMIT 2
   `
-  const [scans] = await bigquery.query({ query: scanQuery })
-  if (scans.length < 2) return null
+  const [urlsScans] = await bigquery.query({ query: urlsScanQuery })
 
-  const toScanId = params.to || scans[0].id
-  const fromScanId = params.from || scans[1].id
+  // 2) Fallback: prendre depuis l'historique si la table détaillée a < 2 scans
+  let toScanId: string
+  let fromScanId: string
+  if ((urlsScans?.length || 0) >= 2) {
+    toScanId = params.to || urlsScans[0].scan_id
+    fromScanId = params.from || urlsScans[1].scan_id
+  } else {
+    const historyScanQuery = `
+      SELECT id, scan_date
+      FROM \`${projectId}.${dataset}.errors_404_history\`
+      ORDER BY scan_date DESC
+      LIMIT 2
+    `
+    const [historyScans] = await bigquery.query({ query: historyScanQuery })
+    if ((historyScans?.length || 0) < 2) return null
+    toScanId = params.to || historyScans[0].id
+    fromScanId = params.from || historyScans[1].id
+  }
 
   // Calculer gained, lost, persisting (robuste aux jeux vides)
   const deltaQuery = `
@@ -582,18 +598,34 @@ export interface BrokenLinksDeltaResult {
 }
 
 export async function getBrokenLinksDelta(params: { from?: string; to?: string }): Promise<BrokenLinksDeltaResult | null> {
-  // Basé sur l'historique (retourne des arrays même vides)
-  const scanQuery = `
-    SELECT id, scan_date
-    FROM \`${projectId}.${dataset}.errors_404_history\`
+  // 1) Essayer de prendre les 2 derniers scan_id présents dans broken_links
+  const blScanQuery = `
+    SELECT DISTINCT scan_id, MAX(scan_date) AS scan_date
+    FROM \`${projectId}.${dataset}.broken_links\`
+    GROUP BY scan_id
     ORDER BY scan_date DESC
     LIMIT 2
   `
-  const [scans] = await bigquery.query({ query: scanQuery })
-  if (scans.length < 2) return null
+  const [blScans] = await bigquery.query({ query: blScanQuery })
 
-  const toScanId = params.to || scans[0].id
-  const fromScanId = params.from || scans[1].id
+  // 2) Fallback: prendre depuis l'historique si la table détaillée a < 2 scans
+  let toScanId: string
+  let fromScanId: string
+  if ((blScans?.length || 0) >= 2) {
+    toScanId = params.to || blScans[0].scan_id
+    fromScanId = params.from || blScans[1].scan_id
+  } else {
+    const historyScanQuery = `
+      SELECT id, scan_date
+      FROM \`${projectId}.${dataset}.errors_404_history\`
+      ORDER BY scan_date DESC
+      LIMIT 2
+    `
+    const [historyScans] = await bigquery.query({ query: historyScanQuery })
+    if ((historyScans?.length || 0) < 2) return null
+    toScanId = params.to || historyScans[0].id
+    fromScanId = params.from || historyScans[1].id
+  }
 
   const deltaQuery = `
     WITH from_data AS (
