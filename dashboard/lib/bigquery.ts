@@ -779,18 +779,26 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
   try {
     console.log(`[BigQuery getLastScansAsEvolution] Querying with limit=${limit}`)
     
-    // Joindre avec broken_links pour compter les liens cassés par scan
+    // Compter 404 via la table détaillée errors_404_urls (plus robuste)
+    // et joindre avec broken_links pour les liens cassés visibles par scan
     const query = `
       WITH scan_history AS (
         SELECT 
           id,
           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
           total_pages_checked,
-          total_errors_404,
           crawl_duration_seconds
         FROM \`${projectId}.${dataset}.errors_404_history\`
         ORDER BY scan_date DESC
         LIMIT @limit
+      ),
+      urls_404_counts AS (
+        SELECT 
+          scan_id,
+          COUNT(DISTINCT CONCAT(site, '|', path)) as total_404_urls
+        FROM \`${projectId}.${dataset}.errors_404_urls\`
+        WHERE scan_id IN (SELECT id FROM scan_history)
+        GROUP BY scan_id
       ),
       broken_links_counts AS (
         SELECT 
@@ -804,12 +812,13 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
         sh.date,
         1 as nb_scans,
         CAST(sh.total_pages_checked AS INT64) as avg_pages_checked,
-        CAST(sh.total_errors_404 AS INT64) as avg_errors_404,
-        CAST(sh.total_errors_404 AS INT64) as max_errors_404,
-        CAST(sh.total_errors_404 AS INT64) as min_errors_404,
+        COALESCE(CAST(u4.total_404_urls AS INT64), 0) as avg_errors_404,
+        COALESCE(CAST(u4.total_404_urls AS INT64), 0) as max_errors_404,
+        COALESCE(CAST(u4.total_404_urls AS INT64), 0) as min_errors_404,
         COALESCE(CAST(blc.total_broken_links AS INT64), 0) as avg_broken_links,
         CAST(sh.crawl_duration_seconds AS INT64) as avg_duration_seconds
       FROM scan_history sh
+      LEFT JOIN urls_404_counts u4 ON sh.id = u4.scan_id
       LEFT JOIN broken_links_counts blc ON sh.id = blc.scan_id
       ORDER BY sh.date DESC
     `
