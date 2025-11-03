@@ -230,11 +230,17 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
     await table.insert([row])
     console.log(`[BigQuery insertError404History] ✅ Inserted scan ${entry.id}`)
   } catch (error: any) {
+    // BigQuery peut retourner des erreurs dans error.errors[] au lieu de error.message
+    const errorMessage = error.message || error.toString() || 'Unknown error'
+    const errorDetails = error.errors || error.response?.errors || []
+    
     console.error('[BigQuery insertError404History] Error:', error)
     console.error('[BigQuery insertError404History] Error details:', {
-      message: error.message,
+      message: errorMessage,
       code: error.code,
-      errors: error.errors,
+      errors: errorDetails,
+      response: error.response,
+      stack: error.stack,
     })
     console.error('[BigQuery insertError404History] Row:', {
       id: row.id,
@@ -246,7 +252,13 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
       sites_results_length: Array.isArray(row.sites_results) ? row.sites_results.length : 'not array',
       crawl_duration_seconds: row.crawl_duration_seconds,
     })
-    throw error // Re-lancer pour que le catch du crawl route puisse logger
+    
+    // Créer une erreur enrichie avec tous les détails disponibles
+    const enrichedError = new Error(errorMessage)
+    ;(enrichedError as any).code = error.code
+    ;(enrichedError as any).errors = errorDetails
+    ;(enrichedError as any).originalError = error
+    throw enrichedError
   }
 }
 

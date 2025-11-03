@@ -454,12 +454,24 @@ export async function POST(request: NextRequest) {
             console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
           }
         } catch (error: any) {
+          // Extraire le message d'erreur de manière robuste
+          const errorMessage = error.message || error.toString() || 'Erreur inconnue'
+          const errorDetails = error.errors || error.response?.errors || []
+          const firstErrorDetail = Array.isArray(errorDetails) && errorDetails.length > 0 
+            ? errorDetails[0]?.message || JSON.stringify(errorDetails[0])
+            : null
+          
+          const fullErrorMessage = firstErrorDetail 
+            ? `${errorMessage}: ${firstErrorDetail}`
+            : errorMessage
+          
           console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error)
           console.error('[404/crawl] BigQuery error details:', {
-            message: error.message,
+            message: errorMessage,
             code: error.code,
-            errors: error.errors,
+            errors: errorDetails,
             response: error.response,
+            firstErrorDetail,
           })
           console.error('[404/crawl] Stack:', error.stack)
           console.error('[404/crawl] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
@@ -467,8 +479,8 @@ export async function POST(request: NextRequest) {
           // Envoyer un événement SSE pour informer le frontend de l'erreur
           sendEvent('error', {
             type: 'bigquery_insert_failed',
-            message: `Erreur lors de l'enregistrement BigQuery: ${error.message}`,
-            error: error.message,
+            message: `Erreur lors de l'enregistrement BigQuery: ${fullErrorMessage}`,
+            error: fullErrorMessage,
           })
           
           // Ne pas faire échouer le crawl si l'écriture BigQuery échoue
