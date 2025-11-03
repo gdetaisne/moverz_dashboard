@@ -212,34 +212,23 @@ export interface Error404Evolution {
 }
 
 export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
-  // Convertir scan_date (ISO string) en TIMESTAMP explicitement
-  // Utiliser PARSE_JSON pour convertir la STRING JSON en type JSON BigQuery
-  const query = `
-    INSERT INTO \`${projectId}.${dataset}.errors_404_history\` (
-      id, scan_date, total_sites, total_pages_checked, total_errors_404,
-      sites_results, crawl_duration_seconds
-    )
-    VALUES (
-      @id, TIMESTAMP(@scan_date), @total_sites, @total_pages_checked, @total_errors_404,
-      PARSE_JSON(@sites_results), @crawl_duration_seconds
-    )
-  `
+  // Utiliser table.insert() directement au lieu d'INSERT avec paramètres
+  // BigQuery convertit automatiquement les objets JS en JSON quand on utilise table.insert()
+  const table = bigquery.dataset(dataset).table('errors_404_history')
   
-  const options = {
-    query,
-    params: {
-      id: entry.id,
-      scan_date: entry.scan_date, // ISO string: "2025-01-15T14:30:00.000Z"
-      total_sites: entry.total_sites,
-      total_pages_checked: entry.total_pages_checked,
-      total_errors_404: entry.total_errors_404,
-      sites_results: JSON.stringify(entry.sites_results), // Convertir en STRING JSON, puis PARSE_JSON dans SQL
-      crawl_duration_seconds: entry.crawl_duration_seconds,
-    },
+  const row = {
+    id: entry.id,
+    scan_date: entry.scan_date, // ISO string sera converti en TIMESTAMP automatiquement
+    total_sites: entry.total_sites,
+    total_pages_checked: entry.total_pages_checked,
+    total_errors_404: entry.total_errors_404,
+    sites_results: entry.sites_results, // Objet JS - BigQuery le convertit en JSON automatiquement
+    crawl_duration_seconds: entry.crawl_duration_seconds,
   }
   
   try {
-    await bigquery.query(options)
+    await table.insert([row])
+    console.log(`[BigQuery insertError404History] ✅ Inserted scan ${entry.id}`)
   } catch (error: any) {
     console.error('[BigQuery insertError404History] Error:', error)
     console.error('[BigQuery insertError404History] Entry:', {
@@ -268,7 +257,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
         CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
       FROM \`${projectId}.${dataset}.errors_404_history\`
       WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
-      GROUP BY DATE(scan_date)
+      GROUP BY DATE(scan_date), FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date)))
       ORDER BY date DESC
     `
     
