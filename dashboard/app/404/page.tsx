@@ -162,8 +162,8 @@ export default function NotFoundPage() {
   async function loadHistory() {
     setLoadingHistory(true)
     try {
-      // Mode 'evolution' pour agrégation quotidienne (meilleure visualisation)
-      const response = await fetch('/dashboard-api/404/history?days=30&mode=evolution')
+      // Mode 'last' pour afficher un point par scan (pas d'agrégation)
+      const response = await fetch('/dashboard-api/404/history?days=30&mode=last&count=50')
       
       if (!response.ok) {
         console.error('[404] History API not OK:', response.status, response.statusText)

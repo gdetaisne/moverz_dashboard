@@ -20,7 +20,20 @@ interface Error404EvolutionProps {
 export function Error404Evolution({ data }: Error404EvolutionProps) {
   const formatTickDate = (dateStr: string) => {
     try {
-      return format(parseISO(dateStr), 'd MMM', { locale: fr })
+      const date = parseISO(dateStr)
+      // Si plusieurs scans le même jour, afficher aussi l'heure
+      const hasMultipleScansSameDay = data.filter(d => {
+        try {
+          return format(parseISO(d.date), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+        } catch {
+          return false
+        }
+      }).length > 1
+      
+      if (hasMultipleScansSameDay) {
+        return format(date, 'HH:mm', { locale: fr })
+      }
+      return format(date, 'd MMM', { locale: fr })
     } catch {
       return dateStr
     }
@@ -28,11 +41,8 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
   const formatTooltipDate = (dateStr: string) => {
     try {
       const date = parseISO(dateStr)
-      // Si c'est à 00:00:00 (mode évolution quotidienne), ne pas afficher l'heure
-      if (date.getHours() === 0 && date.getMinutes() === 0 && date.getSeconds() === 0) {
-        return format(date, 'd MMM yyyy', { locale: fr })
-      }
-      return format(date, "d MMM HH:mm", { locale: fr })
+      // Toujours afficher l'heure pour distinguer les scans individuels
+      return format(date, "d MMM yyyy 'à' HH:mm", { locale: fr })
     } catch {
       return dateStr
     }
@@ -137,28 +147,33 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
                   dataKey="avg_errors_404" 
                   stroke="#f97316" 
                   strokeWidth={3}
-                  name="Erreurs 404 (moyenne)"
-                  dot={{ fill: '#f97316', r: 4 }}
-                  activeDot={{ r: 6, fill: '#f97316' }}
+                  name="Erreurs 404"
+                  dot={{ fill: '#f97316', r: 5, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 7, fill: '#f97316', strokeWidth: 2, stroke: '#fff' }}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="max_errors_404" 
-                  stroke="#ef4444" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Erreurs 404 (max)"
-                  dot={false}
-                />
-                <Line 
-                  type="monotone" 
-                  dataKey="min_errors_404" 
-                  stroke="#22c55e" 
-                  strokeWidth={2}
-                  strokeDasharray="5 5"
-                  name="Erreurs 404 (min)"
-                  dot={false}
-                />
+                {/* Afficher max/min uniquement s'ils sont différents de avg (agrégation quotidienne) */}
+                {chartData.some(d => d.max_errors_404 !== d.avg_errors_404 || d.min_errors_404 !== d.avg_errors_404) && (
+                  <>
+                    <Line 
+                      type="monotone" 
+                      dataKey="max_errors_404" 
+                      stroke="#ef4444" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Erreurs 404 (max)"
+                      dot={false}
+                    />
+                    <Line 
+                      type="monotone" 
+                      dataKey="min_errors_404" 
+                      stroke="#22c55e" 
+                      strokeWidth={2}
+                      strokeDasharray="5 5"
+                      name="Erreurs 404 (min)"
+                      dot={false}
+                    />
+                  </>
+                )}
               </LineChart>
             </ResponsiveContainer>
             
