@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BigQuery } from '@google-cloud/bigquery'
+import type { GSCIssue } from '@/lib/types/gsc'
 
 // Configuration BigQuery avec support GCP_SA_KEY_JSON ou GOOGLE_APPLICATION_CREDENTIALS
 function getBigQueryClient() {
@@ -29,25 +30,6 @@ const bigquery = getBigQueryClient()
 
 const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
 const dataset = process.env.BQ_DATASET || 'analytics_core'
-
-export interface GSCIssue {
-  id: string
-  issue_date: string
-  domain: string
-  issue_type: string
-  severity: 'error' | 'warning' | 'info'
-  status: 'open' | 'resolved' | 'fixed'
-  title: string
-  description: string | null
-  affected_pages_count: number
-  affected_urls: string[]
-  detected_at: string
-  first_seen: string
-  last_seen: string
-  resolved_at: string | null
-  gsc_notification_id: string | null
-  source: string
-}
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams

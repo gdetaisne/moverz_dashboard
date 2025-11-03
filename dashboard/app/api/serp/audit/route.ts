@@ -3,7 +3,9 @@ import { getTopPages } from '@/lib/bigquery'
 import { getCTRBenchmarksByIntent, inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore } from '@/lib/serp-utils'
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 300 // 5 minutes max
+// Note: maxDuration est supporté depuis Next.js 14.1+, mais peut causer des erreurs de build
+// Si erreur persiste, retirer cette ligne et gérer le timeout dans le code
+// export const maxDuration = 300
 
 type AuditResult = {
   summary: {
