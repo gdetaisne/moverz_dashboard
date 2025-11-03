@@ -14,6 +14,14 @@ const nextConfig = {
   // Compresser automatiquement
   compress: true,
   
+  // Désactiver sourcemaps en production (accélère build + réduit taille)
+  productionBrowserSourceMaps: false,
+  
+  // Optimiser les images
+  images: {
+    formats: ['image/avif', 'image/webp'],
+  },
+  
   // Env vars accessibles côté client
   env: {
     NEXT_PUBLIC_SITE_NAME: 'Moverz Analytics',
