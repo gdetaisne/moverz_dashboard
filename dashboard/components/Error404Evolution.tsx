@@ -3,7 +3,10 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 import { format, parseISO } from 'date-fns'
 import { fr } from 'date-fns/locale'
+import { utcToZonedTime } from 'date-fns-tz'
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
+
+const BANGKOK_TZ = 'Asia/Bangkok'
 
 interface Error404EvolutionProps {
   data: Array<{
@@ -20,29 +23,33 @@ interface Error404EvolutionProps {
 export function Error404Evolution({ data }: Error404EvolutionProps) {
   const formatTickDate = (dateStr: string) => {
     try {
-      const date = parseISO(dateStr)
+      const utcDate = parseISO(dateStr)
+      const bangkokDate = utcToZonedTime(utcDate, BANGKOK_TZ)
       // Si plusieurs scans le même jour, afficher aussi l'heure
       const hasMultipleScansSameDay = data.filter(d => {
         try {
-          return format(parseISO(d.date), 'yyyy-MM-dd') === format(date, 'yyyy-MM-dd')
+          const dUtc = parseISO(d.date)
+          const dBkk = utcToZonedTime(dUtc, BANGKOK_TZ)
+          return format(dBkk, 'yyyy-MM-dd') === format(bangkokDate, 'yyyy-MM-dd')
         } catch {
           return false
         }
       }).length > 1
       
       if (hasMultipleScansSameDay) {
-        return format(date, 'HH:mm', { locale: fr })
+        return format(bangkokDate, 'HH:mm', { locale: fr })
       }
-      return format(date, 'd MMM', { locale: fr })
+      return format(bangkokDate, 'd MMM', { locale: fr })
     } catch {
       return dateStr
     }
   }
   const formatTooltipDate = (dateStr: string) => {
     try {
-      const date = parseISO(dateStr)
+      const utcDate = parseISO(dateStr)
+      const bangkokDate = utcToZonedTime(utcDate, BANGKOK_TZ)
       // Toujours afficher l'heure pour distinguer les scans individuels
-      return format(date, "d MMM yyyy 'à' HH:mm", { locale: fr })
+      return format(bangkokDate, "d MMM yyyy 'à' HH:mm", { locale: fr })
     } catch {
       return dateStr
     }

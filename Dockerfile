@@ -104,6 +104,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
 # Mode défini via variable d'environnement CapRover
 # APP_MODE peut être: etl, dashboard, dev
 ENV PORT=3000
+ENV TZ=Asia/Bangkok
 
 CMD ["./start.sh"]
 
