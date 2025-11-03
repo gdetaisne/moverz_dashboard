@@ -61,7 +61,7 @@ export async function POST(request: NextRequest) {
     console.log('Agent script:', agentScript)
 
     // Préparer les variables d'environnement à passer au script
-    const envVars = {
+    const envVars: Record<string, string | undefined> = {
       ...process.env,
       NODE_ENV: process.env.NODE_ENV || 'production',
       GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
