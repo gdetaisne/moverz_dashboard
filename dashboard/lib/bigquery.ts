@@ -293,7 +293,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
       daily_broken_links AS (
         SELECT 
           DATE(bl.scan_date) as scan_day,
-          COUNT(DISTINCT CONCAT(bl.site, '|', bl.target_url)) as total_broken_links
+          COUNT(DISTINCT CONCAT(bl.site, '|', bl.source_url, '|', bl.target_url)) as total_broken_links
         FROM \`${projectId}.${dataset}.broken_links\` bl
         WHERE bl.scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
         GROUP BY DATE(bl.scan_date)
@@ -552,7 +552,7 @@ export async function getError404Delta(params: { from?: string; to?: string }): 
     ),
     by_site AS (
       SELECT 
-        site,
+        all_data.site as site,
         COUNT(DISTINCT CASE WHEN t.site IS NOT NULL AND f.site IS NULL THEN CONCAT(t.site, '|', t.path) END) as gained,
         COUNT(DISTINCT CASE WHEN f.site IS NOT NULL AND t.site IS NULL THEN CONCAT(f.site, '|', f.path) END) as lost,
         COUNT(DISTINCT CASE WHEN t.site IS NOT NULL AND f.site IS NOT NULL THEN CONCAT(t.site, '|', t.path) END) as persisting
@@ -563,7 +563,7 @@ export async function getError404Delta(params: { from?: string; to?: string }): 
       ) all_data
       LEFT JOIN from_data f ON all_data.site = f.site AND all_data.path = f.path
       LEFT JOIN to_data t ON all_data.site = t.site AND all_data.path = t.path
-      GROUP BY site
+      GROUP BY all_data.site
     )
     SELECT 
       @from_scan_id as from_scan_id,
@@ -629,46 +629,49 @@ export async function getBrokenLinksDelta(params: { from?: string; to?: string }
 
   const deltaQuery = `
     WITH from_data AS (
-      SELECT site, target_url
+      SELECT site, source_url, target_url
       FROM \`${projectId}.${dataset}.broken_links\`
       WHERE scan_id = @from_scan_id
     ),
     to_data AS (
-      SELECT site, target_url
+      SELECT site, source_url, target_url
       FROM \`${projectId}.${dataset}.broken_links\`
       WHERE scan_id = @to_scan_id
     ),
     gained AS (
       SELECT t.site, NET.REG_DOMAIN(t.target_url) as domain, REGEXP_EXTRACT(t.target_url, r'[^?]*') as path
       FROM to_data t
-      LEFT JOIN from_data f ON t.site = f.site AND t.target_url = f.target_url
+      LEFT JOIN from_data f 
+        ON t.site = f.site AND t.source_url = f.source_url AND t.target_url = f.target_url
       WHERE f.site IS NULL
     ),
     lost AS (
       SELECT f.site, NET.REG_DOMAIN(f.target_url) as domain, REGEXP_EXTRACT(f.target_url, r'[^?]*') as path
       FROM from_data f
-      LEFT JOIN to_data t ON f.site = t.site AND f.target_url = t.target_url
+      LEFT JOIN to_data t 
+        ON f.site = t.site AND f.source_url = t.source_url AND f.target_url = t.target_url
       WHERE t.site IS NULL
     ),
     persisting AS (
       SELECT COUNT(*) as count
       FROM to_data t
-      JOIN from_data f ON t.site = f.site AND t.target_url = f.target_url
+      JOIN from_data f 
+        ON t.site = f.site AND t.source_url = f.source_url AND t.target_url = f.target_url
     ),
     by_site AS (
       SELECT 
-        site,
-        COUNT(DISTINCT CASE WHEN t.site IS NOT NULL AND f.site IS NULL THEN CONCAT(t.site, '|', t.target_url) END) as gained,
-        COUNT(DISTINCT CASE WHEN f.site IS NOT NULL AND t.site IS NULL THEN CONCAT(f.site, '|', f.target_url) END) as lost,
-        COUNT(DISTINCT CASE WHEN t.site IS NOT NULL AND f.site IS NOT NULL THEN CONCAT(t.site, '|', t.target_url) END) as persisting
+        all_data.site as site,
+        COUNT(DISTINCT CASE WHEN t.site IS NOT NULL AND f.site IS NULL THEN CONCAT(t.site, '|', t.source_url, '|', t.target_url) END) as gained,
+        COUNT(DISTINCT CASE WHEN f.site IS NOT NULL AND t.site IS NULL THEN CONCAT(f.site, '|', f.source_url, '|', f.target_url) END) as lost,
+        COUNT(DISTINCT CASE WHEN t.site IS NOT NULL AND f.site IS NOT NULL THEN CONCAT(t.site, '|', t.source_url, '|', t.target_url) END) as persisting
       FROM (
-        SELECT site, target_url FROM from_data
+        SELECT site, source_url, target_url FROM from_data
         UNION DISTINCT
-        SELECT site, target_url FROM to_data
+        SELECT site, source_url, target_url FROM to_data
       ) all_data
-      LEFT JOIN from_data f ON all_data.site = f.site AND all_data.target_url = f.target_url
-      LEFT JOIN to_data t ON all_data.site = t.site AND all_data.target_url = t.target_url
-      GROUP BY site
+      LEFT JOIN from_data f ON all_data.site = f.site AND all_data.source_url = f.source_url AND all_data.target_url = f.target_url
+      LEFT JOIN to_data t ON all_data.site = t.site AND all_data.source_url = t.source_url AND all_data.target_url = t.target_url
+      GROUP BY all_data.site
     )
     SELECT 
       @from_scan_id as from_scan_id,
@@ -803,7 +806,7 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
       broken_links_counts AS (
         SELECT 
           scan_id,
-          COUNT(DISTINCT CONCAT(site, '|', target_url)) as total_broken_links
+          COUNT(DISTINCT CONCAT(site, '|', source_url, '|', target_url)) as total_broken_links
         FROM \`${projectId}.${dataset}.broken_links\`
         WHERE scan_id IN (SELECT id FROM scan_history)
         GROUP BY scan_id
