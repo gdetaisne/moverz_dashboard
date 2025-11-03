@@ -222,7 +222,10 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
     total_sites: Number(entry.total_sites) || 0,
     total_pages_checked: Number(entry.total_pages_checked) || 0,
     total_errors_404: Number(entry.total_errors_404) || 0,
-    sites_results: entry.sites_results, // Objet JS → JSON automatique
+    // IMPORTANT: Stringifier le tableau pour éviter l'erreur "Array specified for non-repeated field"
+    // table.insert() interprète les tableaux JS comme des champs répétés (ARRAY)
+    // Pour une colonne JSON, il faut passer une STRING JSON, pas un tableau JS
+    sites_results: JSON.stringify(entry.sites_results),
     crawl_duration_seconds: Number(entry.crawl_duration_seconds) || 0,
   }
   
