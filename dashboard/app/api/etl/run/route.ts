@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
     console.log('ETL script:', etlScript)
 
     // Préparer les variables d'environnement à passer au script
-    const envVars = {
+    const envVars: NodeJS.ProcessEnv = {
       ...process.env,
       NODE_ENV: process.env.NODE_ENV || 'production',
       GCP_PROJECT_ID: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
@@ -29,9 +29,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Ajouter les variables optionnelles si elles existent
-    if (process.env.GCP_SA_KEY_JSON) envVars.GCP_SA_KEY_JSON = process.env.GCP_SA_KEY_JSON
-    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) envVars.GOOGLE_APPLICATION_CREDENTIALS = process.env.GOOGLE_APPLICATION_CREDENTIALS
-    if (process.env.SITES_LIST) envVars.SITES_LIST = process.env.SITES_LIST
+    if (process.env.GCP_SA_KEY_JSON) envVars['GCP_SA_KEY_JSON'] = process.env.GCP_SA_KEY_JSON
+    if (process.env.GOOGLE_APPLICATION_CREDENTIALS) envVars['GOOGLE_APPLICATION_CREDENTIALS'] = process.env.GOOGLE_APPLICATION_CREDENTIALS
+    if (process.env.SITES_LIST) envVars['SITES_LIST'] = process.env.SITES_LIST
 
     // Lancer l'ETL en arrière-plan
     const { stdout, stderr } = await execAsync(`npx tsx ${etlScript}`, {
