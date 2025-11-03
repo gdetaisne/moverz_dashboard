@@ -278,9 +278,9 @@ export default function GSCIssuesPage() {
   return (
     <div className="space-y-6">
       <PageIntro
-        title="Alertes Search Console"
-        description="Problèmes d'indexation et alertes détectés par Google Search Console"
-        icon={AlertTriangle}
+        finalite="Mesurer et analyser les problèmes d'indexation et alertes détectés par Google Search Console."
+        tableaux={["Liste des issues GSC", "Statistiques par type", "Détails par domaine"]}
+        sources={["BigQuery (table gsc_issues)", "Google Search Console API"]}
       />
 
       {/* Stats Cards */}
