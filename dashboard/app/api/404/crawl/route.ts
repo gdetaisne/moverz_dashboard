@@ -318,15 +318,18 @@ async function crawlSite(
 
 export async function POST(request: NextRequest) {
   // Récupérer le paramètre site depuis le body ou query string
-  let body: any = {}
+  let siteFilter: string | null = null
   try {
-    body = await request.json().catch(() => ({}))
+    const body = await request.json()
+    siteFilter = body.site || null
   } catch {
-    // Si pas de body, vérifier query params
+    // Si pas de body JSON, vérifier query params
   }
   
   const urlObj = new URL(request.url)
-  const siteFilter = body.site || urlObj.searchParams.get('site') || null
+  if (!siteFilter) {
+    siteFilter = urlObj.searchParams.get('site') || null
+  }
   
   // Déterminer la liste des sites à crawler
   let sitesToCrawl: string[]
