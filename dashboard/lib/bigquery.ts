@@ -492,21 +492,20 @@ export interface Error404DeltaResult {
 }
 
 export async function getError404Delta(params: { from?: string; to?: string }): Promise<Error404DeltaResult | null> {
-  // Récupérer les 2 derniers scans
+  // Récupérer les 2 derniers scans depuis l'historique (même si 0 URLs 404)
   const scanQuery = `
-    SELECT DISTINCT scan_id, scan_date
-    FROM \`${projectId}.${dataset}.errors_404_urls\`
+    SELECT id, scan_date
+    FROM \`${projectId}.${dataset}.errors_404_history\`
     ORDER BY scan_date DESC
     LIMIT 2
   `
-  
   const [scans] = await bigquery.query({ query: scanQuery })
   if (scans.length < 2) return null
-  
-  const toScanId = params.to || scans[0].scan_id
-  const fromScanId = params.from || scans[1].scan_id
-  
-  // Calculer gained, lost, persisting
+
+  const toScanId = params.to || scans[0].id
+  const fromScanId = params.from || scans[1].id
+
+  // Calculer gained, lost, persisting (robuste aux jeux vides)
   const deltaQuery = `
     WITH from_data AS (
       SELECT site, path
@@ -553,18 +552,18 @@ export async function getError404Delta(params: { from?: string; to?: string }): 
     SELECT 
       @from_scan_id as from_scan_id,
       @to_scan_id as to_scan_id,
-      ARRAY_AGG(STRUCT(g.site, g.path) ORDER BY g.site, g.path) as gained,
-      ARRAY_AGG(STRUCT(l.site, l.path) ORDER BY l.site, l.path) as lost,
-      (SELECT count FROM persisting) as persisting,
-      ARRAY_AGG(STRUCT(bs.site, bs.gained, bs.lost, bs.persisting) ORDER BY bs.site) as by_site
-    FROM gained g, lost l, by_site bs
+      COALESCE((SELECT ARRAY_AGG(STRUCT(g.site, g.path) ORDER BY g.site, g.path) FROM gained g), []) as gained,
+      COALESCE((SELECT ARRAY_AGG(STRUCT(l.site, l.path) ORDER BY l.site, l.path) FROM lost l), []) as lost,
+      COALESCE((SELECT count FROM persisting), 0) as persisting,
+      COALESCE((SELECT ARRAY_AGG(STRUCT(bs.site, bs.gained, bs.lost, bs.persisting) ORDER BY bs.site) FROM by_site bs), []) as by_site
+    FROM (SELECT 1)
   `
-  
+
   const [rows] = await bigquery.query({
     query: deltaQuery,
     params: { from_scan_id: fromScanId, to_scan_id: toScanId },
   })
-  
+
   return rows[0] as Error404DeltaResult
 }
 
@@ -583,20 +582,19 @@ export interface BrokenLinksDeltaResult {
 }
 
 export async function getBrokenLinksDelta(params: { from?: string; to?: string }): Promise<BrokenLinksDeltaResult | null> {
-  // Similaire à getError404Delta mais sur table broken_links
+  // Basé sur l'historique (retourne des arrays même vides)
   const scanQuery = `
-    SELECT DISTINCT scan_id, scan_date
-    FROM \`${projectId}.${dataset}.broken_links\`
+    SELECT id, scan_date
+    FROM \`${projectId}.${dataset}.errors_404_history\`
     ORDER BY scan_date DESC
     LIMIT 2
   `
-  
   const [scans] = await bigquery.query({ query: scanQuery })
   if (scans.length < 2) return null
-  
-  const toScanId = params.to || scans[0].scan_id
-  const fromScanId = params.from || scans[1].scan_id
-  
+
+  const toScanId = params.to || scans[0].id
+  const fromScanId = params.from || scans[1].id
+
   const deltaQuery = `
     WITH from_data AS (
       SELECT site, target_url
@@ -643,18 +641,18 @@ export async function getBrokenLinksDelta(params: { from?: string; to?: string }
     SELECT 
       @from_scan_id as from_scan_id,
       @to_scan_id as to_scan_id,
-      ARRAY_AGG(STRUCT(g.site, REGEXP_EXTRACT(g.path, r'/(.*)') as path) ORDER BY g.site, g.path LIMIT 1000) as gained,
-      ARRAY_AGG(STRUCT(l.site, REGEXP_EXTRACT(l.path, r'/(.*)') as path) ORDER BY l.site, l.path LIMIT 1000) as lost,
-      (SELECT count FROM persisting) as persisting,
-      ARRAY_AGG(STRUCT(bs.site, bs.gained, bs.lost, bs.persisting) ORDER BY bs.site) as by_site
-    FROM gained g, lost l, by_site bs
+      COALESCE((SELECT ARRAY_AGG(STRUCT(g.site, REGEXP_EXTRACT(g.path, r'/(.*)') as path) ORDER BY g.site, g.path LIMIT 1000) FROM gained g), []) as gained,
+      COALESCE((SELECT ARRAY_AGG(STRUCT(l.site, REGEXP_EXTRACT(l.path, r'/(.*)') as path) ORDER BY l.site, l.path LIMIT 1000) FROM lost l), []) as lost,
+      COALESCE((SELECT count FROM persisting), 0) as persisting,
+      COALESCE((SELECT ARRAY_AGG(STRUCT(bs.site, bs.gained, bs.lost, bs.persisting) ORDER BY bs.site) FROM by_site bs), []) as by_site
+    FROM (SELECT 1)
   `
-  
+
   const [rows] = await bigquery.query({
     query: deltaQuery,
     params: { from_scan_id: fromScanId, to_scan_id: toScanId },
   })
-  
+
   return rows[0] as BrokenLinksDeltaResult
 }
 
