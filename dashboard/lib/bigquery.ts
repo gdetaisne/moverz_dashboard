@@ -270,22 +270,46 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
   try {
     console.log(`[BigQuery getError404Evolution] Querying with days=${days}`)
     
+    // Joindre avec broken_links pour compter les liens cassés par jour
     const query = `
+      WITH daily_scans AS (
+        SELECT 
+          DATE(scan_date) as scan_day,
+          FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date))) as date,
+          COUNT(*) as nb_scans,
+          CAST(AVG(total_pages_checked) AS INT64) as avg_pages_checked,
+          CAST(AVG(total_errors_404) AS INT64) as avg_errors_404,
+          CAST(MAX(total_errors_404) AS INT64) as max_errors_404,
+          CAST(MIN(total_errors_404) AS INT64) as min_errors_404,
+          CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
+        FROM \`${projectId}.${dataset}.errors_404_history\`
+        WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
+        GROUP BY DATE(scan_date), FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date)))
+      ),
+      daily_broken_links AS (
+        SELECT 
+          DATE(bl.scan_date) as scan_day,
+          COUNT(DISTINCT CONCAT(bl.site, '|', bl.target_url)) as total_broken_links
+        FROM \`${projectId}.${dataset}.broken_links\` bl
+        INNER JOIN \`${projectId}.${dataset}.errors_404_history\` h ON bl.scan_id = h.id
+        WHERE h.scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
+        GROUP BY DATE(bl.scan_date)
+      )
       SELECT 
-        FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date))) as date,
-        COUNT(*) as nb_scans,
-        CAST(AVG(total_pages_checked) AS INT64) as avg_pages_checked,
-        CAST(AVG(total_errors_404) AS INT64) as avg_errors_404,
-        CAST(MAX(total_errors_404) AS INT64) as max_errors_404,
-        CAST(MIN(total_errors_404) AS INT64) as min_errors_404,
-        CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
-      FROM \`${projectId}.${dataset}.errors_404_history\`
-      WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
-      GROUP BY DATE(scan_date), FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date)))
-      ORDER BY date DESC
+        ds.date,
+        ds.nb_scans,
+        ds.avg_pages_checked,
+        ds.avg_errors_404,
+        ds.max_errors_404,
+        ds.min_errors_404,
+        COALESCE(CAST(dbl.total_broken_links AS INT64), 0) as avg_broken_links,
+        ds.avg_duration_seconds
+      FROM daily_scans ds
+      LEFT JOIN daily_broken_links dbl ON ds.scan_day = dbl.scan_day
+      ORDER BY ds.date DESC
     `
     
-    console.log(`[BigQuery getError404Evolution] Executing query on ${projectId}.${dataset}.errors_404_history`)
+    console.log(`[BigQuery getError404Evolution] Executing query on ${projectId}.${dataset}`)
     const [rows] = await bigquery.query({ query })
     console.log(`[BigQuery getError404Evolution] Query returned ${rows?.length || 0} rows`)
     
@@ -297,6 +321,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
       avg_errors_404: Number(row.avg_errors_404 || 0),
       max_errors_404: Number(row.max_errors_404 || 0),
       min_errors_404: Number(row.min_errors_404 || 0),
+      avg_broken_links: Number(row.avg_broken_links || 0),
       avg_duration_seconds: Number(row.avg_duration_seconds || 0),
     }))
     
