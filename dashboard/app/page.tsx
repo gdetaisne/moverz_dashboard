@@ -52,10 +52,10 @@ export default function HomePage() {
         fetch(`/api/gsc/issues?days=7&status=open`),
       ])
       
-      const globalJson = await globalRes.json()
-      const timeseriesJson = await timeseriesRes.json()
-      const insightJson = await insightRes.json()
-      const gscIssuesJson = await gscIssuesRes.json()
+      const globalJson = await globalRes.json().catch(() => ({ success: false }))
+      const timeseriesJson = await timeseriesRes.json().catch(() => ({ success: false }))
+      const insightJson = await insightRes.json().catch(() => ({ insights: [] }))
+      const gscIssuesJson = await gscIssuesRes.json().catch(() => ({ success: false, stats: null }))
       
       if (globalJson.success) setGlobalData(globalJson.data)
       if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)

@@ -13,10 +13,14 @@ try {
   console.error('Failed to parse GCP_SA_KEY_JSON:', error)
 }
 
-export const bigquery = new BigQuery({
-  projectId,
-  credentials,
-})
+export const bigquery = new BigQuery(
+  credentials
+    ? { projectId, credentials }
+    : {
+        projectId,
+        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+      }
+)
 
 // Types
 export interface GSCGlobalMetrics {
@@ -291,8 +295,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
           DATE(bl.scan_date) as scan_day,
           COUNT(DISTINCT CONCAT(bl.site, '|', bl.target_url)) as total_broken_links
         FROM \`${projectId}.${dataset}.broken_links\` bl
-        INNER JOIN \`${projectId}.${dataset}.errors_404_history\` h ON bl.scan_id = h.id
-        WHERE h.scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
+        WHERE bl.scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
         GROUP BY DATE(bl.scan_date)
       )
       SELECT 
@@ -709,8 +712,18 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
   
   const details = detailRows[0] as { urls: Array<{ site: string; path: string }>, links: Array<{ site: string; source: string; target: string }> }
   
+  // Parser sites_results (peut être JSON ou string selon driver)
+  let sitesResults: any[] = []
+  try {
+    sitesResults = Array.isArray((lastScan as any).sites_results)
+      ? ((lastScan as any).sites_results as any[])
+      : JSON.parse(String((lastScan as any).sites_results || '[]'))
+  } catch {
+    sitesResults = []
+  }
+
   // Reconstruire les résultats par site
-  const results: ReconstructedSiteScan[] = (lastScan.sites_results as any[]).map(siteResult => ({
+  const results: ReconstructedSiteScan[] = sitesResults.map(siteResult => ({
     site: siteResult.site,
     total_checked: siteResult.total_checked,
     errors_404: siteResult.errors_404,

@@ -1,10 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BigQuery } from '@google-cloud/bigquery'
 
-const bigquery = new BigQuery({
-  projectId: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-})
+// Configuration BigQuery avec support GCP_SA_KEY_JSON ou GOOGLE_APPLICATION_CREDENTIALS
+function getBigQueryClient() {
+  const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
+  
+  // Si GCP_SA_KEY_JSON est fourni (comme dans CapRover), l'utiliser
+  if (process.env.GCP_SA_KEY_JSON) {
+    try {
+      const credentials = JSON.parse(process.env.GCP_SA_KEY_JSON)
+      return new BigQuery({
+        projectId,
+        credentials,
+      })
+    } catch (error) {
+      console.error('Error parsing GCP_SA_KEY_JSON:', error)
+    }
+  }
+  
+  // Sinon utiliser GOOGLE_APPLICATION_CREDENTIALS (fichier)
+  return new BigQuery({
+    projectId,
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  })
+}
+
+const bigquery = getBigQueryClient()
 
 const BQ_LOCATION = process.env.BQ_LOCATION || 'europe-west1'
 const BQ_DATASET = process.env.BQ_DATASET || 'analytics_core'

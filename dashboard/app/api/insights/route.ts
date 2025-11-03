@@ -1,10 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { BigQuery } from '@google-cloud/bigquery'
 
-const bigquery = new BigQuery({
-  projectId: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-})
+// Configuration BigQuery avec support GCP_SA_KEY_JSON ou GOOGLE_APPLICATION_CREDENTIALS
+function getBigQueryClient() {
+  const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
+  
+  // Si GCP_SA_KEY_JSON est fourni (comme dans CapRover), l'utiliser
+  if (process.env.GCP_SA_KEY_JSON) {
+    try {
+      const credentials = JSON.parse(process.env.GCP_SA_KEY_JSON)
+      return new BigQuery({
+        projectId,
+        credentials,
+      })
+    } catch (error) {
+      console.error('Error parsing GCP_SA_KEY_JSON:', error)
+    }
+  }
+  
+  // Sinon utiliser GOOGLE_APPLICATION_CREDENTIALS (fichier)
+  return new BigQuery({
+    projectId,
+    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+  })
+}
+
+const bigquery = getBigQueryClient()
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -53,14 +74,28 @@ export async function GET(request: NextRequest) {
     })
 
     // Parse JSON fields
-    const insights = rows.map((row: any) => ({
-      ...row,
-      payload: row.payload ? JSON.parse(row.payload) : null,
-      evidence: row.evidence ? JSON.parse(row.evidence) : null,
-      suggested_actions: row.suggested_actions ? JSON.parse(row.suggested_actions) : null,
-      created_at: row.created_at.value,
-      run_date: row.run_date.value,
-    }))
+    const insights = rows.map((row: any) => {
+      const parseJson = (value: any) => {
+        if (!value) return null
+        if (typeof value === 'string') {
+          try {
+            return JSON.parse(value)
+          } catch {
+            return value
+          }
+        }
+        return value
+      }
+
+      return {
+        ...row,
+        payload: parseJson(row.payload),
+        evidence: parseJson(row.evidence),
+        suggested_actions: parseJson(row.suggested_actions),
+        created_at: row.created_at?.value || row.created_at,
+        run_date: row.run_date?.value || row.run_date,
+      }
+    })
 
     return NextResponse.json({ insights })
   } catch (error: any) {

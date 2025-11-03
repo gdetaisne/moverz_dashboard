@@ -6,7 +6,7 @@ import { fr } from 'date-fns/locale'
 import { utcToZonedTime } from 'date-fns-tz'
 import { AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 
-const BANGKOK_TZ = 'Asia/Bangkok'
+const BANGKOK_TZ = 'Europe/Paris'
 
 interface Error404EvolutionProps {
   data: Array<{
