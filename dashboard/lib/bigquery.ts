@@ -236,6 +236,15 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
       sites_results: JSON.stringify(entry.sites_results), // STRING JSON pour PARSE_JSON
       crawl_duration_seconds: entry.crawl_duration_seconds,
     },
+    types: {
+      id: 'STRING',
+      scan_date: 'TIMESTAMP',
+      total_sites: 'INT64',
+      total_pages_checked: 'INT64',
+      total_errors_404: 'INT64',
+      sites_results: 'STRING', // STRING car sera parsé par PARSE_JSON dans SQL
+      crawl_duration_seconds: 'INT64',
+    },
   }
   
   try {
