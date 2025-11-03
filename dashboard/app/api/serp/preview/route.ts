@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTopPages, getTotalImpressionsLast30Days } from '@/lib/bigquery'
 import { BigQuery } from '@google-cloud/bigquery'
-import { inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore } from '@/lib/serp-utils'
+import { inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore, getCTRBenchmarksByIntent } from '@/lib/serp-utils'
 
 export const dynamic = 'force-dynamic'
 
@@ -401,57 +401,6 @@ async function saveSnapshot(previews: SerpPreview[]): Promise<void> {
     } else {
       throw error // Re-throw autres erreurs
     }
-  }
-}
-
-// Fonction pour calculer les CTR benchmarks par intent (top 10 par impressions)
-export async function getCTRBenchmarksByIntent(site?: string): Promise<Record<string, number>> {
-  const siteFilter = site ? `AND domain = @site` : ''
-  const query = `
-    WITH top_pages_by_intent AS (
-      SELECT 
-        domain,
-        intent,
-        page_url,
-        impressions,
-        ctr,
-        ROW_NUMBER() OVER (PARTITION BY domain, intent ORDER BY impressions DESC) as rank_impressions
-      FROM \`${process.env.GCP_PROJECT_ID || 'moverz-dashboard'}.${BQ_DATASET}.serp_snapshots\`
-      WHERE snapshot_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
-        AND intent IS NOT NULL
-        ${siteFilter}
-    ),
-    top_10 AS (
-      SELECT 
-        intent,
-        AVG(ctr) as avg_ctr,
-        COUNT(*) as page_count
-      FROM top_pages_by_intent
-      WHERE rank_impressions <= 10
-        AND ctr IS NOT NULL
-      GROUP BY intent
-    )
-    SELECT 
-      intent,
-      avg_ctr as benchmark_ctr,
-      page_count
-    FROM top_10
-    ORDER BY intent
-  `
-
-  const params: Record<string, any> = {}
-  if (site) params.site = site
-
-  try {
-    const [rows] = await bigquery.query({ query, location: BQ_LOCATION, params })
-    const benchmarks: Record<string, number> = {}
-    for (const row of rows as any[]) {
-      benchmarks[row.intent] = row.benchmark_ctr || 0
-    }
-    return benchmarks
-  } catch (error: any) {
-    console.error('❌ Error fetching CTR benchmarks:', error)
-    return {} // Retourner objet vide si erreur (table peut ne pas exister encore)
   }
 }
 
