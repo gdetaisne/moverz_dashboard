@@ -212,21 +212,34 @@ export interface Error404Evolution {
 }
 
 export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
-  // Utiliser table.insert() avec conversion explicite des types
-  const table = bigquery.dataset(dataset).table('errors_404_history')
+  // Utiliser une requête SQL INSERT avec PARSE_JSON pour forcer le type JSON
+  // BigQuery avec table.insert() peut avoir des problèmes avec les colonnes JSON
+  const query = `
+    INSERT INTO \`${projectId}.${dataset}.errors_404_history\` (
+      id, scan_date, total_sites, total_pages_checked, total_errors_404,
+      sites_results, crawl_duration_seconds
+    )
+    VALUES (
+      @id, @scan_date, @total_sites, @total_pages_checked, @total_errors_404,
+      PARSE_JSON(@sites_results), @crawl_duration_seconds
+    )
+  `
   
-  const row = {
-    id: entry.id,
-    scan_date: new Date(entry.scan_date), // Convertir string ISO en Date object pour TIMESTAMP
-    total_sites: entry.total_sites,
-    total_pages_checked: entry.total_pages_checked,
-    total_errors_404: entry.total_errors_404,
-    sites_results: JSON.stringify(entry.sites_results), // Convertir objet JS en STRING JSON
-    crawl_duration_seconds: entry.crawl_duration_seconds,
+  const options = {
+    query,
+    params: {
+      id: entry.id,
+      scan_date: new Date(entry.scan_date), // Date object pour TIMESTAMP
+      total_sites: entry.total_sites,
+      total_pages_checked: entry.total_pages_checked,
+      total_errors_404: entry.total_errors_404,
+      sites_results: JSON.stringify(entry.sites_results), // STRING JSON pour PARSE_JSON
+      crawl_duration_seconds: entry.crawl_duration_seconds,
+    },
   }
   
   try {
-    await table.insert([row])
+    await bigquery.query(options)
     console.log(`[BigQuery insertError404History] ✅ Inserted scan ${entry.id}`)
   } catch (error: any) {
     console.error('[BigQuery insertError404History] Error:', error)
