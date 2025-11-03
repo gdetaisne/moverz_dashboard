@@ -8,9 +8,7 @@ FROM node:20-alpine AS base
 WORKDIR /app
 
 # Install dependencies for native modules (Google Cloud SDK)
-# Cache APK packages si possible
-RUN --mount=type=cache,target=/var/cache/apk \
-    apk add --no-cache python3 make g++
+RUN apk add --no-cache python3 make g++
 
 # ========================================
 # Stage 1: Install ETL dependencies
@@ -18,11 +16,7 @@ RUN --mount=type=cache,target=/var/cache/apk \
 FROM base AS etl-deps
 
 COPY package*.json ./
-
-# Utiliser BuildKit cache mount pour npm
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --prefer-offline --no-audit --no-fund && \
-    npm cache clean --force
+RUN npm ci --prefer-offline --no-audit --no-fund && npm cache clean --force
 
 # ========================================
 # Stage 2: Install Dashboard dependencies
@@ -32,11 +26,7 @@ FROM base AS dashboard-deps
 # Copier seulement package.json pour mettre en cache les deps
 COPY dashboard/package*.json ./dashboard/
 
-# Utiliser BuildKit cache mount pour npm (évite re-télécharger les dépendances)
-RUN --mount=type=cache,target=/root/.npm \
-    cd dashboard && \
-    npm ci --prefer-offline --no-audit --no-fund && \
-    npm cache clean --force
+RUN cd dashboard && npm ci --prefer-offline --no-audit --no-fund && npm cache clean --force
 
 # ========================================
 # Stage 3: Build Dashboard
@@ -60,10 +50,8 @@ ARG NEXT_TELEMETRY_DISABLED=1
 ENV NODE_ENV=$NODE_ENV
 ENV NEXT_TELEMETRY_DISABLED=$NEXT_TELEMETRY_DISABLED
 
-# Utiliser cache pour .next et node_modules/.cache
 # Désactiver sourcemaps en production pour accélérer
-RUN --mount=type=cache,target=/app/dashboard/.next/cache \
-    cd dashboard && \
+RUN cd dashboard && \
     NEXT_TELEMETRY_DISABLED=1 \
     GENERATE_SOURCEMAP=false \
     npm run build
