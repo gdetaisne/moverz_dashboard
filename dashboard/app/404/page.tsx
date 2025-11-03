@@ -245,10 +245,41 @@ export default function NotFoundPage() {
     finally { setLoadingLast(false) }
   }
   
+  // Copier les nouveaux liens (gained) dans le presse‑papiers
+  function copyNewLinksToClipboard() {
+    try {
+      const gainedBL = (delta?.broken_links?.gained || []) as Array<{ site: string; path: string }>
+      const gained404 = (delta?.urls_404?.gained || []) as Array<{ site: string; path: string }>
+      const lines = [...gainedBL, ...gained404]
+        .map((it) => {
+          const site = it.site || ''
+          const path = it.path || ''
+          // Générer URL absolue
+          const url = path.startsWith('http')
+            ? path
+            : `https://${site}${path.startsWith('/') ? path : `/${path}`}`
+          return url
+        })
+        .filter(Boolean)
+      const unique = Array.from(new Set(lines))
+      if (unique.length === 0) {
+        alert('Aucun nouveau lien à copier')
+        return
+      }
+      navigator.clipboard.writeText(unique.join('\n'))
+        .then(() => alert(`✔️ ${unique.length} lien(s) copié(s) dans le presse‑papiers`))
+        .catch(() => alert('Impossible de copier dans le presse‑papiers'))
+    } catch {
+      alert('Erreur lors de la préparation des liens')
+    }
+  }
+
   // Format time ago
   const formatTimeAgo = (timestamp: string) => {
-    const now = new Date()
+    if (!timestamp) return '—'
     const scanDate = new Date(timestamp)
+    if (isNaN(scanDate.getTime())) return '—'
+    const now = new Date()
     const diffMs = now.getTime() - scanDate.getTime()
     const diffMins = Math.floor(diffMs / 60000)
     const diffHours = Math.floor(diffMs / 3600000)
@@ -258,6 +289,30 @@ export default function NotFoundPage() {
     if (diffMins < 60) return `il y a ${diffMins} minute${diffMins > 1 ? 's' : ''}`
     if (diffHours < 24) return `il y a ${diffHours} heure${diffHours > 1 ? 's' : ''}`
     return `il y a ${diffDays} jour${diffDays > 1 ? 's' : ''}`
+  }
+
+  // Copier les liens corrigés (lost)
+  function copyFixedLinksToClipboard() {
+    try {
+      const lostBL = (delta?.broken_links?.lost || []) as Array<{ site: string; path: string }>
+      const lost404 = (delta?.urls_404?.lost || []) as Array<{ site: string; path: string }>
+      const toUrl = (site: string, path: string) => path?.startsWith('http') ? path : `https://${site}${path?.startsWith('/') ? path : `/${path}`}`
+      const unique = Array.from(new Set([...lostBL, ...lost404].map(it => toUrl(it.site, it.path)).filter(Boolean)))
+      if (unique.length === 0) { alert('Aucun lien corrigé à copier'); return }
+      navigator.clipboard.writeText(unique.join('\n')).then(() => alert(`✔️ ${unique.length} lien(s) corrigé(s) copié(s)`)).catch(() => alert('Impossible de copier'))
+    } catch { alert('Erreur lors de la préparation des liens corrigés') }
+  }
+
+  // Copier tous les liens cassés visibles du dernier scan
+  function copyAllBrokenLinksToClipboard() {
+    try {
+      const targets = (results || [])
+        .flatMap(r => (r.broken_links_list || []).map(l => l.target))
+        .filter(Boolean)
+      const unique = Array.from(new Set(targets))
+      if (unique.length === 0) { alert('Aucun lien cassé à copier'); return }
+      navigator.clipboard.writeText(unique.join('\n')).then(() => alert(`✔️ ${unique.length} lien(s) copié(s)`)).catch(() => alert('Impossible de copier'))
+    } catch { alert('Erreur lors de la préparation des liens') }
   }
   
   const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
@@ -495,7 +550,16 @@ export default function NotFoundPage() {
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
               {/* Nouvelles */}
               <div className="border border-slate-200 rounded-md overflow-hidden">
-                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800">Nouvelles (liens cassés visibles ou 404)</div>
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800 flex items-center justify-between">
+                  <span>Nouvelles (liens cassés visibles ou 404)</span>
+                  <button
+                    onClick={copyNewLinksToClipboard}
+                    className="text-xs font-bold text-primary-600 hover:text-primary-700 tracking-wide"
+                    title="Copier toutes les nouvelles URLs (plein format)"
+                  >
+                    COPIER
+                  </button>
+                </div>
                 <div className="max-h-72 overflow-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 sticky top-0">
@@ -520,7 +584,16 @@ export default function NotFoundPage() {
               </div>
               {/* Corrigées */}
               <div className="border border-slate-200 rounded-md overflow-hidden">
-                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800">Corrigées</div>
+                <div className="px-4 py-2 bg-slate-50 border-b border-slate-200 font-semibold text-slate-800 flex items-center justify-between">
+                  <span>Corrigées</span>
+                  <button
+                    onClick={copyFixedLinksToClipboard}
+                    className="text-xs font-bold text-primary-600 hover:text-primary-700 tracking-wide"
+                    title="Copier toutes les URLs corrigées"
+                  >
+                    COPIER
+                  </button>
+                </div>
                 <div className="max-h-72 overflow-auto">
                   <table className="w-full text-sm">
                     <thead className="bg-slate-50 sticky top-0">
@@ -808,6 +881,12 @@ export default function NotFoundPage() {
                 >
                   <Download className="h-4 w-4" />
                   Exporter CSV
+                </button>
+                <button
+                  onClick={copyAllBrokenLinksToClipboard}
+                  className="text-sm text-primary-600 hover:text-primary-700 font-semibold"
+                >
+                  Copier
                 </button>
                 <button
                   onClick={() => setShowBrokenLinksTable(!showBrokenLinksTable)}
