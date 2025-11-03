@@ -317,9 +317,28 @@ async function crawlSite(
 }
 
 export async function POST(request: NextRequest) {
-  console.log('🚀 Starting PARALLEL recursive crawl with SSE on', SITES.length, 'sites...')
-  const overallStart = Date.now()
+  // Récupérer le paramètre site depuis le body ou query string
+  let body: any = {}
+  try {
+    body = await request.json().catch(() => ({}))
+  } catch {
+    // Si pas de body, vérifier query params
+  }
+  
   const urlObj = new URL(request.url)
+  const siteFilter = body.site || urlObj.searchParams.get('site') || null
+  
+  // Déterminer la liste des sites à crawler
+  let sitesToCrawl: string[]
+  if (siteFilter && siteFilter !== 'all' && SITES.includes(siteFilter)) {
+    sitesToCrawl = [siteFilter]
+    console.log(`🚀 Starting crawl on single site: ${siteFilter}`)
+  } else {
+    sitesToCrawl = SITES
+    console.log(`🚀 Starting PARALLEL recursive crawl with SSE on`, SITES.length, 'sites...')
+  }
+  
+  const overallStart = Date.now()
   const commit_sha = urlObj.searchParams.get('commit') || undefined
   const branch = urlObj.searchParams.get('branch') || undefined
   const actor = urlObj.searchParams.get('actor') || undefined
@@ -338,13 +357,13 @@ export async function POST(request: NextRequest) {
       
       try {
         // Send initial event with site list
-        sendEvent('init', { sites: SITES, total: SITES.length })
+        sendEvent('init', { sites: sitesToCrawl, total: sitesToCrawl.length, filter: siteFilter || 'all' })
         
         const results: CrawlResult[] = []
         
-        // Crawl all sites in parallel with progress callbacks
+        // Crawl sites in parallel with progress callbacks
         await Promise.all(
-          SITES.map(site =>
+          sitesToCrawl.map(site =>
             crawlSite(site, (progress) => {
               // Send progress event for this site
               sendEvent('progress', progress)

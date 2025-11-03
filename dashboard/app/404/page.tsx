@@ -22,8 +22,23 @@ interface ScanResult {
   status?: 'in_progress' | 'completed'
 }
 
+const SITES = [
+  'devis-demenageur-marseille.fr',
+  'devis-demenageur-strasbourg.fr',
+  'devis-demenageur-lille.fr',
+  'devis-demenageur-rennes.fr',
+  'devis-demenageur-rouen.fr',
+  'devis-demenageur-nice.fr',
+  'devis-demenageur-nantes.fr',
+  'devis-demenageur-toulousain.fr',
+  'devis-demenageur-lyon.fr',
+  'www.bordeaux-demenageur.fr',
+  'devis-demenageur-montpellier.fr',
+]
+
 export default function NotFoundPage() {
   const [scanning, setScanning] = useState(false)
+  const [selectedSite, setSelectedSite] = useState<string>('all') // 'all' ou un site spécifique
   const [results, setResults] = useState<ScanResult[]>([])
   const [summary, setSummary] = useState<any>(null)
   const [lastScan, setLastScan] = useState<string | null>(null)
@@ -45,6 +60,12 @@ export default function NotFoundPage() {
     try {
       const response = await fetch('/dashboard-api/404/crawl', {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          site: selectedSite === 'all' ? null : selectedSite,
+        }),
       })
       
       if (!response.ok) {
