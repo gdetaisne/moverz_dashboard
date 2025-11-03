@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getTopPages } from '@/lib/bigquery'
-import { getCTRBenchmarksByIntent, inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore } from '../preview/route'
+import { getCTRBenchmarksByIntent } from '../preview/route'
+import { inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore } from '@/lib/serp-utils'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300 // 5 minutes max
