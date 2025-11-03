@@ -16,6 +16,7 @@ interface Error404EvolutionProps {
     avg_errors_404: number
     max_errors_404: number
     min_errors_404: number
+    avg_broken_links: number
     avg_duration_seconds: number
   }>
 }
@@ -80,7 +81,7 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
             <AlertTriangle className="h-5 w-5 text-orange-600" />
-            Évolution des Erreurs 404
+            Évolution des Erreurs 404 & Liens Cassés
           </h2>
           {trend && (
             <div className="flex items-center gap-2 text-sm">
@@ -144,7 +145,11 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
                     boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)',
                     color: '#0f172a'
                   }}
-                  formatter={(value: number) => [Math.round(value), 'Erreurs']}
+                  formatter={(value: number, name: string) => {
+                    if (name === 'Erreurs 404') return [Math.round(value), 'Erreurs 404']
+                    if (name === 'Liens cassés visibles') return [Math.round(value), 'Liens cassés']
+                    return [Math.round(value), name]
+                  }}
                 />
                 <Legend 
                   wrapperStyle={{ color: '#475569' }}
@@ -157,6 +162,15 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
                   name="Erreurs 404"
                   dot={{ fill: '#f97316', r: 5, strokeWidth: 2, stroke: '#fff' }}
                   activeDot={{ r: 7, fill: '#f97316', strokeWidth: 2, stroke: '#fff' }}
+                />
+                <Line 
+                  type="monotone" 
+                  dataKey="avg_broken_links" 
+                  stroke="#ef4444" 
+                  strokeWidth={3}
+                  name="Liens cassés visibles"
+                  dot={{ fill: '#ef4444', r: 5, strokeWidth: 2, stroke: '#fff' }}
+                  activeDot={{ r: 7, fill: '#ef4444', strokeWidth: 2, stroke: '#fff' }}
                 />
                 {/* Afficher max/min uniquement s'ils sont différents de avg (agrégation quotidienne) */}
                 {chartData.some(d => d.max_errors_404 !== d.avg_errors_404 || d.min_errors_404 !== d.avg_errors_404) && (

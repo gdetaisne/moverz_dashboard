@@ -208,6 +208,7 @@ export interface Error404Evolution {
   avg_errors_404: number
   max_errors_404: number
   min_errors_404: number
+  avg_broken_links: number // Nombre moyen de liens cassés visibles
   avg_duration_seconds: number
 }
 
@@ -710,21 +711,42 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
   try {
     console.log(`[BigQuery getLastScansAsEvolution] Querying with limit=${limit}`)
     
+    // Joindre avec broken_links pour compter les liens cassés par scan
     const query = `
+      WITH scan_history AS (
+        SELECT 
+          id,
+          FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
+          total_pages_checked,
+          total_errors_404,
+          crawl_duration_seconds
+        FROM \`${projectId}.${dataset}.errors_404_history\`
+        ORDER BY scan_date DESC
+        LIMIT @limit
+      ),
+      broken_links_counts AS (
+        SELECT 
+          scan_id,
+          COUNT(DISTINCT CONCAT(site, '|', target_url)) as total_broken_links
+        FROM \`${projectId}.${dataset}.broken_links\`
+        WHERE scan_id IN (SELECT id FROM scan_history)
+        GROUP BY scan_id
+      )
       SELECT 
-        FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
+        sh.date,
         1 as nb_scans,
-        CAST(total_pages_checked AS INT64) as avg_pages_checked,
-        CAST(total_errors_404 AS INT64) as avg_errors_404,
-        CAST(total_errors_404 AS INT64) as max_errors_404,
-        CAST(total_errors_404 AS INT64) as min_errors_404,
-        CAST(crawl_duration_seconds AS INT64) as avg_duration_seconds
-      FROM \`${projectId}.${dataset}.errors_404_history\`
-      ORDER BY scan_date DESC
-      LIMIT @limit
+        CAST(sh.total_pages_checked AS INT64) as avg_pages_checked,
+        CAST(sh.total_errors_404 AS INT64) as avg_errors_404,
+        CAST(sh.total_errors_404 AS INT64) as max_errors_404,
+        CAST(sh.total_errors_404 AS INT64) as min_errors_404,
+        COALESCE(CAST(blc.total_broken_links AS INT64), 0) as avg_broken_links,
+        CAST(sh.crawl_duration_seconds AS INT64) as avg_duration_seconds
+      FROM scan_history sh
+      LEFT JOIN broken_links_counts blc ON sh.id = blc.scan_id
+      ORDER BY sh.date DESC
     `
     
-    console.log(`[BigQuery getLastScansAsEvolution] Executing query on ${projectId}.${dataset}.errors_404_history`)
+    console.log(`[BigQuery getLastScansAsEvolution] Executing query on ${projectId}.${dataset}`)
     const [rows] = await bigquery.query({
       query,
       params: { limit },
@@ -739,6 +761,7 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
       avg_errors_404: Number(row.avg_errors_404 || 0),
       max_errors_404: Number(row.max_errors_404 || 0),
       min_errors_404: Number(row.min_errors_404 || 0),
+      avg_broken_links: Number(row.avg_broken_links || 0),
       avg_duration_seconds: Number(row.avg_duration_seconds || 0),
     }))
     
