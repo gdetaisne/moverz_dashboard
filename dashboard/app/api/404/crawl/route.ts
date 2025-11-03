@@ -366,9 +366,13 @@ export async function POST(request: NextRequest) {
           const now = new Date().toISOString()
           
           console.log('💾 Enregistrement dans BigQuery...')
+          console.log('[404/crawl] BigQuery config:', {
+            projectId: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
+            dataset: process.env.BQ_DATASET || 'analytics_core',
+            hasCredentials: !!process.env.GCP_SA_KEY_JSON,
+          })
           
-          // 1. Historique
-          await insertError404History({
+          const historyEntry = {
             id: scanId,
             scan_date: now,
             total_sites: results.length,
@@ -380,7 +384,18 @@ export async function POST(request: NextRequest) {
               errors_404: r.errors_404,
             })),
             crawl_duration_seconds: totalDuration,
+          }
+          
+          console.log('[404/crawl] Inserting history entry:', {
+            id: historyEntry.id,
+            scan_date: historyEntry.scan_date,
+            total_sites: historyEntry.total_sites,
+            total_pages_checked: historyEntry.total_pages_checked,
+            total_errors_404: historyEntry.total_errors_404,
           })
+          
+          // 1. Historique
+          await insertError404History(historyEntry)
           console.log(`✅ Historique BigQuery enregistré (ID: ${scanId})`)
 
           // 2. URLs 404/410 détaillées
@@ -418,8 +433,22 @@ export async function POST(request: NextRequest) {
           }
         } catch (error: any) {
           console.error('⚠️ Erreur lors de l\'enregistrement BigQuery:', error)
-          console.error('Stack:', error.stack)
-          console.error('Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+          console.error('[404/crawl] BigQuery error details:', {
+            message: error.message,
+            code: error.code,
+            errors: error.errors,
+            response: error.response,
+          })
+          console.error('[404/crawl] Stack:', error.stack)
+          console.error('[404/crawl] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+          
+          // Envoyer un événement SSE pour informer le frontend de l'erreur
+          sendEvent('error', {
+            type: 'bigquery_insert_failed',
+            message: `Erreur lors de l'enregistrement BigQuery: ${error.message}`,
+            error: error.message,
+          })
+          
           // Ne pas faire échouer le crawl si l'écriture BigQuery échoue
         }
         

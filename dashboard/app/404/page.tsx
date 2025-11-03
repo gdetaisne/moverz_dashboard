@@ -146,6 +146,8 @@ export default function NotFoundPage() {
       
       if (!response.ok) {
         console.error('[404] History API not OK:', response.status, response.statusText)
+        const errorText = await response.text().catch(() => 'Unknown error')
+        console.error('[404] History API error body:', errorText)
         setHistoryData([])
         return
       }
@@ -161,7 +163,18 @@ export default function NotFoundPage() {
         evolutionSample: Array.isArray(data.data?.evolution) && data.data.evolution.length > 0 ? data.data.evolution[0] : null,
         meta: data.meta,
         error: data.error,
+        errorCode: data.errorCode,
       })
+      
+      // Si erreur, logger et afficher dans la console
+      if (!data.success) {
+        console.error('[404] History API returned error:', {
+          message: data.error,
+          code: data.errorCode,
+          stack: data.stack,
+        })
+        // Continuer pour afficher le message "Aucune donnée" mais avec info d'erreur
+      }
       
       // Toujours définir historyData, même si c'est un tableau vide
       if (data.success && data.data && Array.isArray(data.data.evolution)) {

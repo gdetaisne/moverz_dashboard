@@ -94,8 +94,14 @@ export function Error404Evolution({ data }: Error404EvolutionProps) {
         {chartData.length === 0 ? (
           <div className="text-center py-12 text-slate-600">
             <AlertTriangle className="h-12 w-12 text-slate-400 mx-auto mb-3" />
-            <p>Aucune donnée historique disponible</p>
-            <p className="text-sm mt-1">Lancez un scan pour commencer à suivre l&apos;évolution</p>
+            <p className="font-semibold text-slate-800">Aucune donnée historique disponible</p>
+            <p className="text-sm mt-1 mb-4">Lancez un scan pour commencer à suivre l&apos;évolution</p>
+            <div className="mt-4 text-xs text-slate-500 space-y-1">
+              <p>💡 Si vous avez déjà lancé des scans :</p>
+              <p>• Vérifiez que la table BigQuery existe</p>
+              <p>• Vérifiez les logs du serveur pour des erreurs</p>
+              <p>• Appelez <code className="bg-slate-100 px-1 rounded">/dashboard-api/404/debug</code> pour diagnostiquer</p>
+            </div>
           </div>
         ) : (
           <>

@@ -64,6 +64,14 @@ export function Navigation() {
         sources: ['Crawler interne enregistré dans BigQuery']
       }
     },
+    { 
+      href: '/gsc-issues', label: 'Alertes GSC', icon: AlertTriangle, title: 'Alertes et problèmes d\'indexation Search Console',
+      help: {
+        finalite: 'Surveiller les problèmes d\'indexation détectés par Google Search Console.',
+        tableaux: ['Liste des alertes', 'Pages affectées', 'Statistiques par type'],
+        sources: ['API Search Console URL Inspection', 'BigQuery table gsc_issues']
+      }
+    },
     
     // Config
     { 

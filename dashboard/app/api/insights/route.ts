@@ -12,6 +12,7 @@ export async function GET(request: NextRequest) {
   const site = searchParams.get('site')
   const severity = searchParams.get('severity')
   const days = searchParams.get('days') || '30'
+  const limit = parseInt(searchParams.get('limit') || '50', 10)
 
   try {
     let whereClause = `WHERE created_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)`
@@ -43,7 +44,7 @@ export async function GET(request: NextRequest) {
       FROM \`${process.env.GCP_PROJECT_ID}.${process.env.BQ_DATASET || 'analytics_core'}.agent_insights\`
       ${whereClause}
       ORDER BY created_at DESC
-      LIMIT 50
+      LIMIT ${limit}
     `
 
     const [rows] = await bigquery.query({

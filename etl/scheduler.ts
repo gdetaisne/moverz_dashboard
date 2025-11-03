@@ -5,13 +5,15 @@
 import 'dotenv/config'
 import cron from 'node-cron'
 import { runGSCETL } from './gsc/fetch.js'
+import { fetchGSCIssues } from './gsc/fetch-issues.js'
 import { runLeadsSync } from './leads/sync.js'
 import { runWebVitalsAggregator } from './web-vitals/aggregate.js'
 import { logETLJob } from './shared/bigquery-client.js'
 import { log } from './shared/error-handler.js'
 
-// Import Traffic Analyst (agent IA)
+// Import Agents IA
 import { runTrafficAnalyst } from '../agents/traffic-analyst/agent.js'
+import { runGSCIssuesAnalyzer } from '../agents/gsc-issues-analyzer/agent.js'
 
 // ========================================
 // JOBS ETL
@@ -65,6 +67,34 @@ async function executeLeadsJob() {
   }
 }
 
+async function executeGSCIssuesJob() {
+  log('info', '🔄 Starting GSC Issues job...')
+  
+  try {
+    await fetchGSCIssues()
+    
+    log('info', '✅ GSC Issues completed')
+    
+    // Lancer l'agent IA d'analyse après mise à jour réussie (si clé OpenAI configurée)
+    if (process.env.OPENAI_API_KEY) {
+      log('info', '🤖 Triggering GSC Issues Analyzer after update...')
+      try {
+        const analyzerResult = await runGSCIssuesAnalyzer()
+        log('info', '✅ GSC Issues Analyzer completed', {
+          status: analyzerResult.status,
+          insights: analyzerResult.status === 'success' ? analyzerResult.insights.length : 0,
+        })
+      } catch (analyzerError: any) {
+        log('error', '❌ GSC Issues Analyzer failed', { error: analyzerError.message })
+      }
+    } else {
+      log('info', '⏭️  Skipping GSC Issues Analyzer (OPENAI_API_KEY not configured)')
+    }
+  } catch (error: any) {
+    log('error', '❌ GSC Issues failed', { error: error.message })
+  }
+}
+
 async function executeWebVitalsJob() {
   log('info', '🔄 Starting Web Vitals Aggregation job...')
   
@@ -94,6 +124,17 @@ function startScheduler() {
   })
   log('info', '⏰ GSC ETL scheduled: daily at 09:00')
 
+  // GSC Issues: 2 fois par jour à 09:30 et 17:30
+  cron.schedule('30 9 * * *', executeGSCIssuesJob, {
+    timezone: 'Europe/Paris',
+  })
+  log('info', '⏰ GSC Issues scheduled: daily at 09:30')
+  
+  cron.schedule('30 17 * * *', executeGSCIssuesJob, {
+    timezone: 'Europe/Paris',
+  })
+  log('info', '⏰ GSC Issues scheduled: daily at 17:30')
+
   // Leads: Tous les jours à 10:00
   cron.schedule('0 10 * * *', executeLeadsJob, {
     timezone: 'Europe/Paris',
@@ -118,6 +159,7 @@ async function runAllJobsNow() {
   log('info', '▶️  Running all jobs manually...')
   
   await executeGSCJob()
+  await executeGSCIssuesJob()
   await executeLeadsJob()
   await executeWebVitalsJob()
   

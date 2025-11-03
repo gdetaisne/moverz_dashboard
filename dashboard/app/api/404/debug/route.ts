@@ -80,7 +80,7 @@ export async function GET(_request: NextRequest) {
           CAST(AVG(total_errors_404) AS INT64) as avg_errors_404
         FROM \`${projectId}.${dataset}.errors_404_history\`
         WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
-        GROUP BY DATE(scan_date)
+        GROUP BY DATE(scan_date), FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date)))
         ORDER BY date DESC
         LIMIT 10
       `

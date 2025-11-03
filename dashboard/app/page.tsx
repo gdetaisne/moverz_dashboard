@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw, Info, ChevronDown, ChevronUp } from 'lucide-react'
+import { TrendingUp, MousePointerClick, Eye, Target, RefreshCw, Info, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react'
 import { MetricCard } from '@/components/MetricCard'
 import { TimeSeriesChart } from '@/components/TimeSeriesChart'
 import MultiSiteTimeSeriesChart from '@/components/MultiSiteTimeSeriesChart'
@@ -40,24 +40,34 @@ export default function HomePage() {
   const [showFullClicks, setShowFullClicks] = useState(false)
   const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
+  const [gscIssuesStats, setGscIssuesStats] = useState<{ total: number; warnings: number; errors: number } | null>(null)
   
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [globalRes, timeseriesRes, insightRes] = await Promise.all([
+      const [globalRes, timeseriesRes, insightRes, gscIssuesRes] = await Promise.all([
         fetch(`/api/metrics/global?days=${period}`),
         fetch(`/api/metrics/timeseries?days=30`),
         fetch(`/api/insights?site=${encodeURIComponent('*global*')}&agent=report`),
+        fetch(`/api/gsc/issues?days=7&status=open`),
       ])
       
       const globalJson = await globalRes.json()
       const timeseriesJson = await timeseriesRes.json()
       const insightJson = await insightRes.json()
+      const gscIssuesJson = await gscIssuesRes.json()
       
       if (globalJson.success) setGlobalData(globalJson.data)
       if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)
       if (insightJson.insights && insightJson.insights.length > 0) {
         setGlobalInsight(insightJson.insights[0])
+      }
+      if (gscIssuesJson.success && gscIssuesJson.stats) {
+        setGscIssuesStats({
+          total: gscIssuesJson.stats.total || 0,
+          warnings: gscIssuesJson.stats.by_severity?.warning || 0,
+          errors: gscIssuesJson.stats.by_severity?.error || 0,
+        })
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -245,6 +255,44 @@ export default function HomePage() {
         )}
       </div>
       
+      {/* Alertes GSC */}
+      {gscIssuesStats && gscIssuesStats.total > 0 && (
+        <div className={`mb-6 rounded-lg border-2 p-4 ${
+          gscIssuesStats.errors > 0 
+            ? 'bg-red-50 border-red-300' 
+            : gscIssuesStats.warnings > 0 
+            ? 'bg-orange-50 border-orange-300' 
+            : 'bg-blue-50 border-blue-300'
+        }`}>
+          <div className="flex items-center gap-3">
+            <AlertTriangle className={`h-6 w-6 flex-shrink-0 ${
+              gscIssuesStats.errors > 0 
+                ? 'text-red-600' 
+                : gscIssuesStats.warnings > 0 
+                ? 'text-orange-600' 
+                : 'text-blue-600'
+            }`} />
+            <div className="flex-1">
+              <div className="font-semibold text-gray-900 mb-1">
+                {gscIssuesStats.errors > 0 && `${gscIssuesStats.errors} erreur${gscIssuesStats.errors > 1 ? 's' : ''} d'indexation`}
+                {gscIssuesStats.errors > 0 && gscIssuesStats.warnings > 0 && ' et '}
+                {gscIssuesStats.warnings > 0 && `${gscIssuesStats.warnings} avertissement${gscIssuesStats.warnings > 1 ? 's' : ''}`}
+                {gscIssuesStats.total > 0 && ` détecté${gscIssuesStats.total > 1 ? 's' : ''}`}
+              </div>
+              <div className="text-sm text-gray-600">
+                {gscIssuesStats.total} problème{gscIssuesStats.total > 1 ? 's' : ''} d'indexation ouvert{gscIssuesStats.total > 1 ? 's' : ''} sur les 7 derniers jours
+              </div>
+            </div>
+            <a
+              href="/gsc-issues"
+              className="px-4 py-2 bg-white border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors whitespace-nowrap"
+            >
+              Voir les détails →
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Insight Global */}
       {globalInsight && (
         <div className="mb-6">
