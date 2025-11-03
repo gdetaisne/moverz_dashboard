@@ -93,7 +93,7 @@ export async function POST(request: NextRequest) {
     const { stdout, stderr } = await execAsync(`npx tsx ${agentScript}`, {
       cwd: projectRoot,
       timeout: 120000, // 2 minutes max
-      env: envVars,
+      env: envVars as NodeJS.ProcessEnv,
     })
 
     console.log('✅ Agent terminé avec succès')
