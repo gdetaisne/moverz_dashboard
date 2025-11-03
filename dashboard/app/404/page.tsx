@@ -596,10 +596,10 @@ export default function NotFoundPage() {
                     Pages (Analysées / Trouvées)
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Erreurs 404
+                    Liens cassés visibles
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
-                    Liens cassés visibles
+                    Erreurs 404
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Taux d&apos;Erreur
@@ -608,7 +608,7 @@ export default function NotFoundPage() {
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
                 {results
-                  .sort((a, b) => b.errors_404 - a.errors_404)
+                  .sort((a, b) => (b.broken_links || 0) - (a.broken_links || 0))
                   .map((result) => {
                     const errorRate = result.total_checked > 0 
                       ? (result.errors_404 / result.total_checked * 100).toFixed(1) 
@@ -679,26 +679,26 @@ export default function NotFoundPage() {
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
                           <div className="flex items-center gap-2">
-                            <span className={result.errors_404 > 0 ? 'text-orange-600' : 'text-green-600'}>
-                              {result.errors_404}
-                            </span>
-                            {u4 && net404 !== 0 && (
-                              <span className={`text-xs font-semibold ${net404 > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                {net404 > 0 ? `+${net404}` : net404}
+                            {result.broken_links > 0 ? (
+                              <span className="text-red-600">{result.broken_links}</span>
+                            ) : (
+                              <span className="text-slate-400">0</span>
+                            )}
+                            {bl && netBL !== 0 && (
+                              <span className={`text-xs font-semibold ${netBL > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {netBL > 0 ? `+${netBL}` : netBL}
                               </span>
                             )}
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
                           <div className="flex items-center gap-2">
-                            {result.broken_links > 0 ? (
-                              <span className="text-red-600">{result.broken_links}</span>
-                            ) : (
-                              <span className="text-slate-400">{/* vide si 0 */}</span>
-                            )}
-                            {bl && netBL !== 0 && (
-                              <span className={`text-xs font-semibold ${netBL > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                {netBL > 0 ? `+${netBL}` : netBL}
+                            <span className={result.errors_404 > 0 ? 'text-orange-600' : 'text-green-600'}>
+                              {result.errors_404}
+                            </span>
+                            {u4 && net404 !== 0 && (
+                              <span className={`text-xs font-semibold ${net404 > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                {net404 > 0 ? `+${net404}` : net404}
                               </span>
                             )}
                           </div>
@@ -724,19 +724,19 @@ export default function NotFoundPage() {
                     {results.reduce((sum, r) => sum + r.total_checked, 0)}
                   </td>
                   <td className="px-6 py-4 text-sm">
-                    <span className="text-orange-600 text-lg font-bold">
-                      {results.reduce((sum, r) => sum + r.errors_404, 0)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm">
                     {(() => {
                       const totalBroken = results.reduce((sum, r) => sum + (r.broken_links || 0), 0)
                       return totalBroken > 0 ? (
                         <span className="text-red-600 text-lg font-bold">{totalBroken}</span>
                       ) : (
-                        <span className="text-slate-400">{/* vide si 0 */}</span>
+                        <span className="text-slate-400">0</span>
                       )
                     })()}
+                  </td>
+                  <td className="px-6 py-4 text-sm">
+                    <span className="text-orange-600 text-lg font-bold">
+                      {results.reduce((sum, r) => sum + r.errors_404, 0)}
+                    </span>
                   </td>
                   <td className="px-6 py-4 text-sm text-slate-900">
                     {(() => {

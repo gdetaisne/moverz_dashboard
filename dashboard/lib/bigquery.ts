@@ -370,18 +370,22 @@ export async function insertError404UrlsScan(scan: Error404UrlScan) {
     FROM UNNEST(@entries) as entry
   `
   
-  await bigquery.query({
-    query,
-    params: {
-      scan_id: scan.scan_id,
-      scan_date: scan.scan_date,
-      entries: scan.entries,
-      commit_sha: scan.commit_sha || null,
-      branch: scan.branch || null,
-      actor: scan.actor || null,
-      repo: scan.repo || null,
-    },
-  })
+  // Utiliser table.insert() pour éviter problèmes avec null dans query params
+  const table = bigquery.dataset(dataset).table('errors_404_urls')
+  
+  const rows = scan.entries.map(entry => ({
+    scan_id: scan.scan_id,
+    scan_date: scan.scan_date,
+    site: entry.site,
+    path: entry.path,
+    status: entry.status,
+    commit_sha: scan.commit_sha || null,
+    branch: scan.branch || null,
+    actor: scan.actor || null,
+    repo: scan.repo || null,
+  }))
+  
+  await table.insert(rows)
 }
 
 export interface BrokenLinksScan {
@@ -417,18 +421,22 @@ export async function insertBrokenLinksScan(scan: BrokenLinksScan) {
     FROM UNNEST(@links) as link
   `
   
-  await bigquery.query({
-    query,
-    params: {
-      scan_id: scan.scan_id,
-      scan_date: scan.scan_date,
-      links: scan.links,
-      commit_sha: scan.commit_sha || null,
-      branch: scan.branch || null,
-      actor: scan.actor || null,
-      repo: scan.repo || null,
-    },
-  })
+  // Utiliser table.insert() pour éviter problèmes avec null dans query params
+  const table = bigquery.dataset(dataset).table('broken_links')
+  
+  const rows = scan.links.map(link => ({
+    scan_id: scan.scan_id,
+    scan_date: scan.scan_date,
+    site: link.site,
+    source_url: link.source,
+    target_url: link.target,
+    commit_sha: scan.commit_sha || null,
+    branch: scan.branch || null,
+    actor: scan.actor || null,
+    repo: scan.repo || null,
+  }))
+  
+  await table.insert(rows)
 }
 
 // ========================================
