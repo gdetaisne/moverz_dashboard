@@ -135,6 +135,12 @@ export default function NotFoundPage() {
           } else if (eventType === 'complete') {
             setSummary(data.summary)
             setLastScan(data.timestamp)
+            // Recharger l'historique et le delta pour inclure le nouveau scan
+            try {
+              loadHistory()
+              loadDelta()
+              loadLastScan()
+            } catch {}
           } else if (eventType === 'error') {
             console.error('Crawl error:', data)
             alert('❌ Erreur lors du crawl : ' + data.message)
