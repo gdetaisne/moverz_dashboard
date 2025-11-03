@@ -212,17 +212,16 @@ export interface Error404Evolution {
 }
 
 export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
-  // Utiliser table.insert() directement au lieu d'INSERT avec paramètres
-  // BigQuery convertit automatiquement les objets JS en JSON quand on utilise table.insert()
+  // Utiliser table.insert() avec conversion explicite des types
   const table = bigquery.dataset(dataset).table('errors_404_history')
   
   const row = {
     id: entry.id,
-    scan_date: entry.scan_date, // ISO string sera converti en TIMESTAMP automatiquement
+    scan_date: new Date(entry.scan_date), // Convertir string ISO en Date object pour TIMESTAMP
     total_sites: entry.total_sites,
     total_pages_checked: entry.total_pages_checked,
     total_errors_404: entry.total_errors_404,
-    sites_results: entry.sites_results, // Objet JS - BigQuery le convertit en JSON automatiquement
+    sites_results: JSON.stringify(entry.sites_results), // Convertir objet JS en STRING JSON
     crawl_duration_seconds: entry.crawl_duration_seconds,
   }
   
@@ -231,12 +230,19 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
     console.log(`[BigQuery insertError404History] ✅ Inserted scan ${entry.id}`)
   } catch (error: any) {
     console.error('[BigQuery insertError404History] Error:', error)
+    console.error('[BigQuery insertError404History] Error details:', {
+      message: error.message,
+      code: error.code,
+      errors: error.errors,
+    })
     console.error('[BigQuery insertError404History] Entry:', {
       id: entry.id,
       scan_date: entry.scan_date,
       total_sites: entry.total_sites,
       total_pages_checked: entry.total_pages_checked,
       total_errors_404: entry.total_errors_404,
+      sites_results_type: typeof entry.sites_results,
+      sites_results_length: Array.isArray(entry.sites_results) ? entry.sites_results.length : 'not array',
     })
     throw error // Re-lancer pour que le catch du crawl route puisse logger
   }
