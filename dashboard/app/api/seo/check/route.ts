@@ -66,13 +66,11 @@ function normalizeSite(site: string): { host: string; httpsBase: string; httpBas
   }
 }
 
-function loadCheerio(html?: string) {
-  if (!html) return null
-  try { return cheerio.load(html) } catch { return null }
+function loadCheerio(html?: string): cheerio.CheerioAPI {
+  try { return cheerio.load(html || '') } catch { return cheerio.load('') }
 }
 
-function parseJsonLd($: cheerio.CheerioAPI | null): any[] {
-  if (!$) return []
+function parseJsonLd($: cheerio.CheerioAPI): any[] {
   const blocks: any[] = []
   $('script[type="application/ld+json"]').each((_, el) => {
     const raw = $(el).contents().text()
@@ -87,26 +85,22 @@ function parseJsonLd($: cheerio.CheerioAPI | null): any[] {
   return blocks
 }
 
-function getTitle($: cheerio.CheerioAPI | null): string | null {
-  if (!$) return null
+function getTitle($: cheerio.CheerioAPI): string | null {
   const t = $('title').first().text().trim()
   return t || null
 }
 
-function getMeta($: cheerio.CheerioAPI | null, name: string): string | null {
-  if (!$) return null
+function getMeta($: cheerio.CheerioAPI, name: string): string | null {
   const el = $(`meta[name="${name}"]`).attr('content')
   return (el || '').trim() || null
 }
 
-function getCanonical($: cheerio.CheerioAPI | null): string | null {
-  if (!$) return null
+function getCanonical($: cheerio.CheerioAPI): string | null {
   const href = $('link[rel="canonical"]').attr('href')
   return (href || '').trim() || null
 }
 
-function getFavicons($: cheerio.CheerioAPI | null): string[] {
-  if (!$) return []
+function getFavicons($: cheerio.CheerioAPI): string[] {
   const hrefs = new Set<string>()
   $('link[rel*="icon"]').each((_, el) => {
     const href = $(el).attr('href')

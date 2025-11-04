@@ -31,7 +31,7 @@ function normalizeSite(site: string): { host: string; httpsBase: string; httpBas
   return { host, httpsBase, httpBase, wwwBase: `https://${wwwHost}`, nonWwwBase: `https://${nonWwwHost}` }
 }
 
-function loadCheerio(html?: string) { if (!html) return null; try { return cheerio.load(html) } catch { return null } }
+function loadCheerio(html?: string): cheerio.CheerioAPI { try { return cheerio.load(html || '') } catch { return cheerio.load('') } }
 function parseJsonLd($: cheerio.CheerioAPI | null): any[] {
   if (!$) return []
   const out: any[] = []
