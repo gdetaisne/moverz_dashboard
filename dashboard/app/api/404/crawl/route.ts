@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import * as cheerio from 'cheerio'
-import { insertError404History, insertError404UrlsScan, insertBrokenLinksScan } from '@/lib/bigquery'
+import { insertError404History, insertError404UrlsScan, insertBrokenLinksScan, getLastReconstructedScan, cloneError404UrlsFromPreviousScan, cloneBrokenLinksFromPreviousScan } from '@/lib/bigquery'
 import { randomUUID } from 'crypto'
 
 /**
@@ -400,9 +400,59 @@ export async function POST(request: NextRequest) {
           )
         )
         
+        // Si crawl partiel, reconstruire un snapshot complet basé sur le dernier scan
         const totalDuration = Math.round((Date.now() - overallStart) / 1000)
-        const totalPages = results.reduce((sum, r) => sum + r.total_checked, 0)
-        const totalErrors = results.reduce((sum, r) => sum + r.errors_404, 0)
+        let fullResults: CrawlResult[] = results
+        try {
+          if (sitesToCrawl.length < SITES.length) {
+            const prev = await getLastReconstructedScan()
+            if (prev && Array.isArray(prev.results)) {
+              const prevBySite = new Map(prev.results.map(r => [r.site, r]))
+              fullResults = SITES.map(site => {
+                const updated = results.find(r => r.site === site)
+                if (updated) return updated
+                const oldR = prevBySite.get(site)
+                if (oldR) {
+                  return {
+                    site,
+                    total_checked: oldR.total_checked || 0,
+                    total_pages_found: oldR.total_checked || 0,
+                    pages_not_analyzed: 0,
+                    max_pages_per_site: MAX_PAGES_PER_SITE,
+                    errors_404: oldR.errors_404 || 0,
+                    broken_links: (oldR.broken_links_list || []).length || 0,
+                    errors_list: oldR.errors_list || [],
+                    broken_links_list: oldR.broken_links_list || [],
+                    scan_date: new Date().toISOString(),
+                    crawl_duration: 0,
+                    progress_percent: 100,
+                    status: 'completed',
+                  }
+                }
+                return {
+                  site,
+                  total_checked: 0,
+                  total_pages_found: 0,
+                  pages_not_analyzed: 0,
+                  max_pages_per_site: MAX_PAGES_PER_SITE,
+                  errors_404: 0,
+                  broken_links: 0,
+                  errors_list: [],
+                  broken_links_list: [],
+                  scan_date: new Date().toISOString(),
+                  crawl_duration: 0,
+                  progress_percent: 100,
+                  status: 'completed',
+                }
+              })
+            }
+          }
+        } catch (e) {
+          console.warn('[404/crawl] Failed to build fullResults snapshot:', e)
+        }
+
+        const totalPages = fullResults.reduce((sum, r) => sum + r.total_checked, 0)
+        const totalErrors = fullResults.reduce((sum, r) => sum + r.errors_404, 0)
         
         console.log(`✅ Crawl completed (PARALLEL): ${totalPages} pages, ${totalErrors} errors (${totalDuration}s)`)
         
@@ -421,10 +471,10 @@ export async function POST(request: NextRequest) {
           const historyEntry = {
             id: scanId,
             scan_date: now,
-            total_sites: results.length,
+            total_sites: fullResults.length,
             total_pages_checked: totalPages,
             total_errors_404: totalErrors,
-            sites_results: results.map(r => ({
+            sites_results: fullResults.map(r => ({
               site: r.site,
               total_checked: r.total_checked,
               errors_404: r.errors_404,
@@ -444,7 +494,7 @@ export async function POST(request: NextRequest) {
           await insertError404History(historyEntry)
           console.log(`✅ Historique BigQuery enregistré (ID: ${scanId})`)
 
-          // 2. URLs 404/410 détaillées
+          // 2. URLs 404/410 détaillées (nouveau pour sites crawlés)
           const urlEntries = results.flatMap(r =>
             (r.errors_detailed || []).map(e => ({ site: r.site, path: e.path, status: e.status }))
           )
@@ -461,7 +511,7 @@ export async function POST(request: NextRequest) {
             console.log(`✅ URLs 404/410 sauvegardées (${urlEntries.length})`)
           }
 
-          // 3. Liens cassés visibles par scan (source -> target)
+          // 3. Liens cassés visibles par scan (source -> target) pour sites crawlés
           const brokenLinksEntries = results.flatMap(r =>
             (r.broken_links_list || []).map(l => ({ site: r.site, source: l.source, target: l.target }))
           )
@@ -476,6 +526,41 @@ export async function POST(request: NextRequest) {
               links: brokenLinksEntries,
             })
             console.log(`✅ Liens cassés visibles sauvegardés (${brokenLinksEntries.length})`)
+          }
+
+          // 4. Si crawl partiel, cloner les détails du précédent scan pour les sites non crawlés
+          if (sitesToCrawl.length < SITES.length) {
+            try {
+              const prev = await getLastReconstructedScan()
+              if (prev?.scan_id) {
+                const nonCrawled = SITES.filter(s => !sitesToCrawl.includes(s))
+                if (nonCrawled.length > 0) {
+                  await cloneError404UrlsFromPreviousScan({
+                    prev_scan_id: prev.scan_id,
+                    new_scan_id: scanId,
+                    new_scan_date: now,
+                    sites: nonCrawled,
+                    commit_sha,
+                    branch,
+                    actor,
+                    repo,
+                  })
+                  await cloneBrokenLinksFromPreviousScan({
+                    prev_scan_id: prev.scan_id,
+                    new_scan_id: scanId,
+                    new_scan_date: now,
+                    sites: nonCrawled,
+                    commit_sha,
+                    branch,
+                    actor,
+                    repo,
+                  })
+                  console.log(`✅ Détails clonés depuis le scan ${prev.scan_id} pour ${nonCrawled.length} site(s) non crawlé(s)`)
+                }
+              }
+            } catch (e) {
+              console.warn('[404/crawl] Failed to clone previous details for non-crawled sites:', e)
+            }
           }
         } catch (error: any) {
           // Extraire le message d'erreur de manière robuste

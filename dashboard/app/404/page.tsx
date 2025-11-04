@@ -146,7 +146,12 @@ export default function NotFoundPage() {
             } catch {}
           } else if (eventType === 'error') {
             console.error('Crawl error:', data)
-            alert('❌ Erreur lors du crawl : ' + data.message)
+            // Ne pas alerter pour les erreurs d'écriture BigQuery en dev
+            if (data?.type === 'bigquery_insert_failed') {
+              // info console uniquement
+            } else {
+              alert('❌ Erreur lors du crawl : ' + (data?.message || 'Inconnue'))
+            }
           }
         }
       }
@@ -154,6 +159,72 @@ export default function NotFoundPage() {
     } catch (error) {
       console.error('Failed to run crawl:', error)
       alert('❌ Erreur lors du crawl des 404')
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  // Crawl un seul site sans ré-initialiser le tableau
+  async function runScanForSite(site: string) {
+    if (scanning) return
+    setScanning(true)
+    try {
+      const response = await fetch('/api/404/crawl', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ site }),
+      })
+      if (!response.ok) throw new Error('Network response was not ok')
+      const reader = response.body?.getReader()
+      const decoder = new TextDecoder()
+      if (!reader) throw new Error('No response body')
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (!line.trim()) continue
+          const eventMatch = line.match(/^event: (.+)\ndata: (.+)$/s)
+          if (!eventMatch) continue
+          const [, eventType, dataStr] = eventMatch
+          const data = JSON.parse(dataStr)
+          if (eventType === 'progress') {
+            setResults(prev => {
+              const index = prev.findIndex(r => r.site === data.site)
+              if (index === -1) return prev
+              const updated = [...prev]
+              updated[index] = {
+                ...updated[index],
+                total_checked: data.total_checked || 0,
+                total_pages_found: data.total_pages_found,
+                pages_not_analyzed: data.pages_not_analyzed,
+                max_pages_per_site: data.max_pages_per_site,
+                errors_404: data.errors_404 || 0,
+                broken_links: data.broken_links || 0,
+                errors_list: data.errors_list || [],
+                broken_links_list: data.broken_links_list || [],
+                progress_percent: data.progress_percent || 0,
+                status: data.status || 'in_progress',
+                redirects_308: data.redirects_308 || 0,
+              }
+              return updated
+            })
+          } else if (eventType === 'complete') {
+            try { loadHistory(); loadDelta(); loadLastScan() } catch {}
+          } else if (eventType === 'error') {
+            console.error('Partial crawl error:', data)
+            if (data?.type !== 'bigquery_insert_failed') {
+              alert('❌ Erreur lors du crawl : ' + (data?.message || 'Inconnue'))
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to run partial crawl:', e)
+      alert('❌ Erreur lors du crawl du site')
     } finally {
       setScanning(false)
     }
@@ -689,6 +760,9 @@ export default function NotFoundPage() {
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Taux d&apos;Erreur
                   </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Actions
+                  </th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-slate-200">
@@ -797,6 +871,17 @@ export default function NotFoundPage() {
                         </td>
                         <td className="px-6 py-4 text-sm font-medium text-slate-900">
                           {errorRate}%
+                        </td>
+                        <td className="px-6 py-4 text-sm">
+                          <button
+                            onClick={() => runScanForSite(result.site)}
+                            disabled={scanning}
+                            className="inline-flex items-center gap-2 px-3 py-1.5 text-xs bg-slate-100 text-slate-700 rounded border border-slate-300 hover:bg-slate-200 disabled:opacity-50"
+                            title="Crawler uniquement ce site"
+                          >
+                            <RefreshCw className={`h-3 w-3 ${scanning ? 'animate-spin' : ''}`} />
+                            Mettre à jour
+                          </button>
                         </td>
                       </tr>
                     )

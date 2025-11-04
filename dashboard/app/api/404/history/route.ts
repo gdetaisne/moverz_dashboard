@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getError404Evolution, getLastError404Scan, getLastScansAsEvolution } from '@/lib/bigquery'
+import { getError404Evolution, getLastError404Scan, getLastScansAsEvolution, hasBigQueryCredentials } from '@/lib/bigquery'
 
 export const dynamic = 'force-dynamic'
 
@@ -14,6 +14,15 @@ export async function GET(request: NextRequest) {
     const count = parseInt(searchParams.get('count') || '20', 10)
     const mode = (searchParams.get('mode') || 'last').toLowerCase()
     
+    // Dev fallback: pas de credentials BQ → renvoyer 200 avec données vides
+    if (!hasBigQueryCredentials()) {
+      return NextResponse.json({
+        success: true,
+        data: { evolution: [], lastScan: null },
+        meta: { days, count: 0, mode, credentials: 'missing' },
+      })
+    }
+
     // Mode par défaut demandé: derniers crawls (non agrégés)
     const evolution = mode === 'last'
       ? await getLastScansAsEvolution(count)
@@ -56,18 +65,15 @@ export async function GET(request: NextRequest) {
     const days = parseInt(sp.get('days') || '30', 10)
     const mode = (sp.get('mode') || 'last').toLowerCase()
     
-    // TOUJOURS retourner l'erreur pour permettre le diagnostic
+    // Ne pas planter l'UI: renvoyer 200 avec données vides et détails d'erreur
     return NextResponse.json({
-      success: false,
-      data: {
-        evolution: [],
-        lastScan: null,
-      },
+      success: true,
+      data: { evolution: [], lastScan: null },
       meta: { days, count: 0, mode },
       error: error.message,
       errorCode: error.code,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    }, { status: 500 })
+    })
   }
 }
 

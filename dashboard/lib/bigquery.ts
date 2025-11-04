@@ -22,6 +22,10 @@ export const bigquery = new BigQuery(
       }
 )
 
+export function hasBigQueryCredentials(): boolean {
+  return Boolean(process.env.GCP_SA_KEY_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS)
+}
+
 // Types
 export interface GSCGlobalMetrics {
   date: string
@@ -271,6 +275,10 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
 }
 
 export async function getError404Evolution(days: number = 30): Promise<Error404Evolution[]> {
+  if (!hasBigQueryCredentials()) {
+    console.warn('[BigQuery getError404Evolution] No credentials in dev → returning empty evolution')
+    return []
+  }
   try {
     console.log(`[BigQuery getError404Evolution] Querying with days=${days}`)
     
@@ -338,6 +346,10 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
 }
 
 export async function getLastError404Scan(): Promise<Error404HistoryEntry | null> {
+  if (!hasBigQueryCredentials()) {
+    console.warn('[BigQuery getLastError404Scan] No credentials in dev → returning null')
+    return null
+  }
   const query = `
     SELECT 
       id,
@@ -779,6 +791,10 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
 }
 
 export async function getLastScansAsEvolution(limit: number = 20): Promise<Error404Evolution[]> {
+  if (!hasBigQueryCredentials()) {
+    console.warn('[BigQuery getLastScansAsEvolution] No credentials in dev → returning empty list')
+    return []
+  }
   try {
     console.log(`[BigQuery getLastScansAsEvolution] Querying with limit=${limit}`)
     
@@ -852,5 +868,93 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
     console.error(`[BigQuery getLastScansAsEvolution] Stack:`, error.stack)
     throw error
   }
+}
+
+// ========================================
+// Clone helpers for partial scans → full snapshot
+// ========================================
+
+export async function cloneError404UrlsFromPreviousScan(params: {
+  prev_scan_id: string
+  new_scan_id: string
+  new_scan_date: string
+  sites: string[]
+  commit_sha?: string
+  branch?: string
+  actor?: string
+  repo?: string
+}): Promise<void> {
+  if (!params.sites || params.sites.length === 0) return
+  const query = `
+    INSERT INTO \`${projectId}.${dataset}.errors_404_urls\`
+    (scan_id, scan_date, site, path, status, commit_sha, branch, actor, repo)
+    SELECT 
+      @new_scan_id,
+      @new_scan_date,
+      site,
+      path,
+      status,
+      @commit_sha,
+      @branch,
+      @actor,
+      @repo
+    FROM \`${projectId}.${dataset}.errors_404_urls\`
+    WHERE scan_id = @prev_scan_id AND site IN UNNEST(@sites)
+  `
+  await bigquery.query({
+    query,
+    params: {
+      prev_scan_id: params.prev_scan_id,
+      new_scan_id: params.new_scan_id,
+      new_scan_date: params.new_scan_date,
+      sites: params.sites,
+      commit_sha: params.commit_sha || null,
+      branch: params.branch || null,
+      actor: params.actor || null,
+      repo: params.repo || null,
+    },
+  })
+}
+
+export async function cloneBrokenLinksFromPreviousScan(params: {
+  prev_scan_id: string
+  new_scan_id: string
+  new_scan_date: string
+  sites: string[]
+  commit_sha?: string
+  branch?: string
+  actor?: string
+  repo?: string
+}): Promise<void> {
+  if (!params.sites || params.sites.length === 0) return
+  const query = `
+    INSERT INTO \`${projectId}.${dataset}.broken_links\`
+    (scan_id, scan_date, site, source_url, target_url, commit_sha, branch, actor, repo)
+    SELECT 
+      @new_scan_id,
+      @new_scan_date,
+      site,
+      source_url,
+      target_url,
+      @commit_sha,
+      @branch,
+      @actor,
+      @repo
+    FROM \`${projectId}.${dataset}.broken_links\`
+    WHERE scan_id = @prev_scan_id AND site IN UNNEST(@sites)
+  `
+  await bigquery.query({
+    query,
+    params: {
+      prev_scan_id: params.prev_scan_id,
+      new_scan_id: params.new_scan_id,
+      new_scan_date: params.new_scan_date,
+      sites: params.sites,
+      commit_sha: params.commit_sha || null,
+      branch: params.branch || null,
+      actor: params.actor || null,
+      repo: params.repo || null,
+    },
+  })
 }
 
