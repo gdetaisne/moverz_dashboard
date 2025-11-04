@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, Sparkles, Globe, Search } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, Sparkles, Globe, Search, CheckSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Tooltip from './Tooltip'
 
@@ -43,6 +43,14 @@ export function Navigation() {
         finalite: 'Visualiser les requêtes/pages leaders et un aperçu SERP.',
         tableaux: ['Top 20 résultats (requêtes/pages)', 'Prévisualisation SERP'],
         sources: ['Google Search Console', 'Fetcher SERP (aperçu)']
+      }
+    },
+    { 
+      href: '/seo-checks', label: 'SEO checks', icon: CheckSquare, title: 'Checklist SEO complète (100 points)',
+      help: {
+        finalite: 'Exécuter une checklist exhaustive et prioriser les actions.',
+        tableaux: ['Checklist 100 points', 'Score global & par catégorie', 'Export rapport (Markdown)'],
+        sources: ['Google Search Central', 'Web.dev', 'Schema.org']
       }
     },
     
@@ -100,8 +108,8 @@ export function Navigation() {
                 ? pathname === '/'
                 : pathname.startsWith(link.href)
               
-              // Séparateurs entre sections
-              const needsSeparator = idx === 2 || idx === 4 || idx === 6
+              // Séparateurs entre sections (Vue d'ensemble | Détails | Technique | Config)
+              const needsSeparator = idx === 2 || idx === 5 || idx === 7
               
               return (
                 <div key={link.href} className="flex items-center gap-1">
@@ -119,7 +127,7 @@ export function Navigation() {
                             <li key={t}>{t}</li>
                           ))}
                         </ul>
-                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Sources d'informations</div>
+                        <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Sources d&apos;informations</div>
                         <ul className="list-disc pl-5 text-slate-800">
                           {(link.help?.sources || []).map((s: string) => (
                             <li key={s}>{s}</li>

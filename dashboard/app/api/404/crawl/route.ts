@@ -38,6 +38,7 @@ interface CrawlResult {
   progress_percent: number
   status: 'in_progress' | 'completed'
   errors_detailed?: Array<{ path: string; status: '404' | '410' }>
+  redirects_308?: number
 }
 
 type ProgressCallback = (result: Partial<CrawlResult>) => void
@@ -81,7 +82,7 @@ function normalizeUrl(urlString: string, baseUrl?: string): string {
 }
 
 // Type pour stocker le statut d'une URL
-type UrlStatus = 200 | 301 | 302 | 404 | 410 | 500 | 'timeout' | 'error'
+type UrlStatus = 200 | 301 | 302 | 308 | 404 | 410 | 500 | 'timeout' | 'error'
 
 /**
  * Skip les fichiers non-HTML
@@ -118,6 +119,7 @@ async function crawlSite(
   const errors: string[] = []
   const errorsDetailed: Array<{ path: string; status: '404' | '410' }> = []
   const allFoundPages = new Set<string>()
+  let redirects308Count = 0
   
   // Initialiser avec la page d'accueil
   const startUrl = normalizeUrl(`https://${domain}/`)
@@ -136,6 +138,26 @@ async function crawlSite(
     visited.add(url)
     
     try {
+      // Détection des redirections 308 via HEAD (sans suivre la redirection)
+      try {
+        const headController = new AbortController()
+        const headTimeoutId = setTimeout(() => headController.abort(), REQUEST_TIMEOUT)
+        const headRes = await fetch(url, {
+          method: 'HEAD',
+          redirect: 'manual',
+          signal: headController.signal,
+          headers: {
+            'User-Agent': 'Moverz-Analytics-Bot/1.0',
+          },
+        })
+        clearTimeout(headTimeoutId)
+        if (headRes.status === 308) {
+          redirects308Count++
+        }
+      } catch {
+        // Ignorer erreurs HEAD (certains serveurs ne le supportent pas)
+      }
+
       const controller = new AbortController()
       const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT)
       
@@ -235,6 +257,7 @@ async function crawlSite(
         errors_list: errors.slice(0, 50),
         progress_percent: Math.min(progress, 50), // Pass 1 = 50% max
         status: 'in_progress',
+        redirects_308: redirects308Count,
       })
       console.log(`  📊 Pass 1: ${visited.size}/${totalFound} pages crawlees, ${errors.length} erreurs 404/410`)
     }
@@ -306,6 +329,7 @@ async function crawlSite(
     progress_percent: 100,
     status: 'completed',
     errors_detailed: errorsDetailed,
+    redirects_308: redirects308Count,
   }
   
   // Send final progress update

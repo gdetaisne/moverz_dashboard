@@ -20,6 +20,7 @@ interface ScanResult {
   scan_date?: string
   progress_percent?: number
   status?: 'in_progress' | 'completed'
+  redirects_308?: number
 }
 
 const SITES = [
@@ -108,6 +109,7 @@ export default function NotFoundPage() {
               errors_list: [],
               progress_percent: 0,
               status: 'in_progress' as const,
+              redirects_308: 0,
             }))
             setResults(initialResults)
           } else if (eventType === 'progress') {
@@ -129,6 +131,7 @@ export default function NotFoundPage() {
                 broken_links_list: data.broken_links_list || [],
                 progress_percent: data.progress_percent || 0,
                 status: data.status || 'in_progress',
+                redirects_308: data.redirects_308 || 0,
               }
               return updated
             })
@@ -678,6 +681,9 @@ export default function NotFoundPage() {
                     Liens cassés visibles
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
+                    Redirects 308
+                  </th>
+                  <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
                     Erreurs 404
                   </th>
                   <th className="px-6 py-4 text-left text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -771,6 +777,13 @@ export default function NotFoundPage() {
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm font-bold">
+                          {result.redirects_308 && result.redirects_308 > 0 ? (
+                            <span className="text-slate-900">{result.redirects_308}</span>
+                          ) : (
+                            <span className="text-slate-400">0</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4 text-sm font-bold">
                           <div className="flex items-center gap-2">
                             <span className={result.errors_404 > 0 ? 'text-orange-600' : 'text-green-600'}>
                               {result.errors_404}
@@ -811,6 +824,9 @@ export default function NotFoundPage() {
                         <span className="text-slate-400">0</span>
                       )
                     })()}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-slate-900">
+                    {results.reduce((sum, r) => sum + (r.redirects_308 || 0), 0)}
                   </td>
                   <td className="px-6 py-4 text-sm">
                     <span className="text-orange-600 text-lg font-bold">

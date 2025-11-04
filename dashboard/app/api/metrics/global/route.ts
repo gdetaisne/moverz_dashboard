@@ -20,10 +20,26 @@ export async function GET(request: NextRequest) {
     })
   } catch (error: any) {
     console.error('API /metrics/global error:', error)
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    )
+    // Fallback doux pour éviter de casser l'UI en dev sans credentials BigQuery
+    const days = parseInt(request.nextUrl.searchParams.get('days') || '7', 10)
+    const sitesEnv = (process.env.SITES_LIST || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const dataFallback = sitesEnv.map((site) => ({
+      site,
+      clicks: 0,
+      impressions: 0,
+      ctr: 0,
+      position: 0,
+      trend_clicks: 0,
+      trend_impressions: 0,
+    }))
+    return NextResponse.json({
+      success: true,
+      data: dataFallback,
+      meta: { period: `${days} days`, count: dataFallback.length, fallback: 'bigquery_unavailable' }
+    })
   }
 }
 
