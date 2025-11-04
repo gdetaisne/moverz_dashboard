@@ -46,19 +46,26 @@ export default function HomePage() {
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [globalRes, timeseriesRes, insightRes, gscIssuesRes, last404Res] = await Promise.all([
-        fetch(`/api/metrics/global?days=${period}`),
-        fetch(`/api/metrics/timeseries?days=30`),
-        fetch(`/api/insights?site=${encodeURIComponent('*global*')}&agent=report`),
-        fetch(`/api/gsc/issues?days=7&status=open`),
-        fetch(`/api/404/history?mode=last&count=1`),
+      // Timeout soft en dev pour éviter un chargement infini si une route API est lente/non dispo
+      const fetchJsonWithTimeout = async (url: string, timeoutMs = 8000) => {
+        try {
+          const controller = new AbortController()
+          const timer = setTimeout(() => controller.abort(), timeoutMs)
+          const res = await fetch(url, { signal: controller.signal })
+          clearTimeout(timer)
+          return await res.json().catch(() => null)
+        } catch {
+          return null
+        }
+      }
+
+      const [globalJson, timeseriesJson, insightJson, gscIssuesJson, last404Json] = await Promise.all([
+        fetchJsonWithTimeout(`/api/metrics/global?days=${period}`),
+        fetchJsonWithTimeout(`/api/metrics/timeseries?days=30`),
+        fetchJsonWithTimeout(`/api/insights?site=${encodeURIComponent('*global*')}&agent=report`),
+        fetchJsonWithTimeout(`/api/gsc/issues?days=7&status=open`),
+        fetchJsonWithTimeout(`/api/404/history?mode=last&count=1`),
       ])
-      
-      const globalJson = await globalRes.json().catch(() => ({ success: false }))
-      const timeseriesJson = await timeseriesRes.json().catch(() => ({ success: false }))
-      const insightJson = await insightRes.json().catch(() => ({ insights: [] }))
-      const gscIssuesJson = await gscIssuesRes.json().catch(() => ({ success: false, stats: null }))
-      const last404Json = await last404Res.json().catch(() => ({ success: false }))
       
       if (globalJson.success) setGlobalData(globalJson.data)
       if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)

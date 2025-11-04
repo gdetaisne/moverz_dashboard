@@ -34,7 +34,7 @@ export function MetricCard({ title, value, trend, format = 'number', icon }: Met
       </div>
       
       <div className="mt-3 flex items-baseline gap-3">
-        <p className="text-4xl font-bold text-slate-900">{value}</p>
+        <p className="text-3xl sm:text-4xl font-bold text-slate-900">{value}</p>
         
         {trend !== undefined && (
           <span className={cn('flex items-center gap-1 text-sm font-semibold', getTrendColor())}>

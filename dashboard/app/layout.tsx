@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   description: 'Dashboard analytics pour le réseau Moverz (11 sites)',
 }
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -22,7 +27,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-gray-50">
         <AnimatedFavicon />
         <Navigation />
-        <main className="container mx-auto px-4 py-8">
+        <main className="container mx-auto px-3 sm:px-4 py-6 sm:py-8">
           {children}
         </main>
         <PersistentChat />

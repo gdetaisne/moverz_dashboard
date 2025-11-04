@@ -2,12 +2,14 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, Sparkles, Globe, Search, CheckSquare } from 'lucide-react'
+import { useState } from 'react'
+import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, Sparkles, Globe, Search, CheckSquare, Menu, X } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Tooltip from './Tooltip'
 
 export function Navigation() {
   const pathname = usePathname()
+  const [isMobileOpen, setIsMobileOpen] = useState(false)
   
   const links = [
     // Vue d'ensemble
@@ -94,14 +96,23 @@ export function Navigation() {
   
   return (
     <nav className="border-b bg-white shadow-sm">
-      <div className="container mx-auto px-4">
+      <div className="container mx-auto px-3 sm:px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-primary-600" />
             <span className="text-xl font-bold">Moverz Analytics</span>
           </div>
-          
-          <div className="flex gap-1 items-center">
+          {/* Bouton menu mobile */}
+          <button
+            className="md:hidden inline-flex items-center justify-center rounded-md p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100"
+            aria-label="Ouvrir le menu"
+            onClick={() => setIsMobileOpen((v) => !v)}
+          >
+            {isMobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </button>
+
+          {/* Liens desktop */}
+          <div className="hidden md:flex gap-1 items-center">
             {links.map((link, idx) => {
               const Icon = link.icon
               const isActive = link.href === '/' 
@@ -155,6 +166,36 @@ export function Navigation() {
             })}
           </div>
         </div>
+        {/* Menu mobile déroulant */}
+        {isMobileOpen && (
+          <div className="md:hidden pb-3">
+            <div className="grid grid-cols-1 gap-1">
+              {links.map((link) => {
+                const Icon = link.icon
+                const isActive = link.href === '/' 
+                  ? pathname === '/'
+                  : pathname.startsWith(link.href)
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={() => setIsMobileOpen(false)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium',
+                      isActive
+                        ? 'bg-primary-100 text-primary-700'
+                        : 'text-gray-700 hover:bg-gray-100 hover:text-gray-900'
+                    )}
+                    aria-label={link.title || link.label}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {link.label}
+                  </Link>
+                )
+              })}
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   )
