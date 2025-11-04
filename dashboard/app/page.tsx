@@ -41,21 +41,24 @@ export default function HomePage() {
   const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
   const [gscIssuesStats, setGscIssuesStats] = useState<{ total: number; warnings: number; errors: number } | null>(null)
+  const [last404ScanDate, setLast404ScanDate] = useState<Date | null>(null)
   
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const [globalRes, timeseriesRes, insightRes, gscIssuesRes] = await Promise.all([
+      const [globalRes, timeseriesRes, insightRes, gscIssuesRes, last404Res] = await Promise.all([
         fetch(`/api/metrics/global?days=${period}`),
         fetch(`/api/metrics/timeseries?days=30`),
         fetch(`/api/insights?site=${encodeURIComponent('*global*')}&agent=report`),
         fetch(`/api/gsc/issues?days=7&status=open`),
+        fetch(`/api/404/history?mode=last&count=1`),
       ])
       
       const globalJson = await globalRes.json().catch(() => ({ success: false }))
       const timeseriesJson = await timeseriesRes.json().catch(() => ({ success: false }))
       const insightJson = await insightRes.json().catch(() => ({ insights: [] }))
       const gscIssuesJson = await gscIssuesRes.json().catch(() => ({ success: false, stats: null }))
+      const last404Json = await last404Res.json().catch(() => ({ success: false }))
       
       if (globalJson.success) setGlobalData(globalJson.data)
       if (timeseriesJson.success) setTimeseriesData(timeseriesJson.data)
@@ -68,6 +71,15 @@ export default function HomePage() {
           warnings: gscIssuesJson.stats.by_severity?.warning || 0,
           errors: gscIssuesJson.stats.by_severity?.error || 0,
         })
+      }
+      // Dernier crawl 404
+      if (last404Json && last404Json.data && last404Json.data.lastScan) {
+        const raw = last404Json.data.lastScan.scan_date
+        const dateStr = typeof raw === 'string' ? raw : (raw?.value || raw)
+        const d = dateStr ? new Date(dateStr) : null
+        if (d && !isNaN(d.getTime())) setLast404ScanDate(d)
+      } else {
+        setLast404ScanDate(null)
       }
     } catch (error) {
       console.error('Failed to fetch data:', error)
@@ -224,6 +236,29 @@ export default function HomePage() {
           )}
         </div>
       </div>
+      
+      {/* Avertissement si le crawl 404 est ancien (> 7 jours) */}
+      {(!last404ScanDate || (Date.now() - last404ScanDate.getTime()) > 7 * 24 * 60 * 60 * 1000) && (
+        <div className="rounded-lg border-2 p-4 bg-amber-50 border-amber-300 mb-2">
+          <div className="flex items-center gap-3">
+            <AlertTriangle className="h-6 w-6 text-amber-600" />
+            <div className="flex-1">
+              <div className="font-semibold text-slate-900 mb-1">
+                Le crawl des erreurs 404 n'a pas été exécuté depuis plus de 7 jours
+              </div>
+              <div className="text-sm text-slate-700">
+                {last404ScanDate ? `Dernier crawl: ${last404ScanDate.toLocaleString('fr-FR')}` : `Aucun crawl trouvé`}
+              </div>
+            </div>
+            <a
+              href="/404"
+              className="px-4 py-2 bg-white border border-slate-300 rounded-md text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors whitespace-nowrap"
+            >
+              Lancer un scan →
+            </a>
+          </div>
+        </div>
+      )}
       
       {/* Section Explication */}
       <div className="bg-slate-50 border border-slate-200 rounded-lg">
