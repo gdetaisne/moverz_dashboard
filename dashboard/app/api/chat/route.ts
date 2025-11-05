@@ -198,7 +198,7 @@ export async function POST(request: NextRequest) {
           const days = /7\s?j|7\s?jours|\b7\b/.test(lower) ? 7 : 30
           const selectExpr = metric === 'impressions' ? 'SUM(impressions) as impressions' : metric === 'ctr' ? 'AVG(ctr) as ctr' : metric === 'position' ? 'AVG(position) as position' : 'SUM(clicks) as clicks'
           gptResult = {
-            sql: `SELECT FORMAT_DATE('%Y-%m-%d', date) as date, ${selectExpr}\nFROM \`moverz-dashboard.analytics_core.gsc_daily_aggregated\`\nWHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)\n  AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)\n  ${domainFilter}\nGROUP BY date\nORDER BY date` ,
+            sql: `SELECT FORMAT_DATE('%Y-%m-%d', date) as date, ${selectExpr}\nFROM \`moverz-dashboard.analytics_core.gsc_daily_aggregated\`\nWHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)\n  ${domainFilter}\nGROUP BY date\nORDER BY date` ,
             explanation: 'Fallback constructeur: évolution des clics sur la période demandée.',
             suggestions: [foundCity ? `Comparer ${foundCity} à la moyenne réseau` : 'Préciser un domaine pour focaliser'],
           }

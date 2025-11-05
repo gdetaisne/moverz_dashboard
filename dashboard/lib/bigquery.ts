@@ -66,7 +66,6 @@ export async function getGlobalMetrics(days: number = 7): Promise<SiteMetrics[]>
         AVG(position) as position
       FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
-        AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
       GROUP BY domain
     ),
     previous_period AS (
@@ -77,7 +76,6 @@ export async function getGlobalMetrics(days: number = 7): Promise<SiteMetrics[]>
       FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)
         AND date < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
-        AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
       GROUP BY domain
     )
     SELECT 
@@ -110,7 +108,6 @@ export async function getTimeSeriesData(site?: string, days: number = 30) {
       AVG(position) as position
     FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
-      AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
       ${siteFilter}
     GROUP BY date, domain
     ORDER BY date DESC, domain
@@ -155,7 +152,6 @@ export async function getTopPages(site?: string, limit: number = 20) {
           AVG(position) AS position
         FROM \`${projectId}.${dataset}.gsc_daily_metrics\`
         WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
-          AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
           ${site ? 'AND domain = @site' : ''}
         GROUP BY domain, page
       )
@@ -176,7 +172,6 @@ export async function getTotalImpressionsLast30Days(): Promise<number> {
     SELECT SUM(impressions) AS total_impressions
     FROM \`${projectId}.${dataset}.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
-      AND date < DATE_SUB(CURRENT_DATE(), INTERVAL 1 DAY)
   `
   const [rows] = await bigquery.query({ query })
   const total = (rows?.[0]?.total_impressions as number) || 0
