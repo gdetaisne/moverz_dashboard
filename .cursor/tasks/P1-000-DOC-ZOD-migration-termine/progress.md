@@ -72,17 +72,83 @@
 
 ---
 
-### 2025-01-XX - Session Guillaume (Tests en ligne)
+### 2025-01-XX - Session Guillaume (Tests en ligne + Fix ETL)
 
-**Objectif:** Tester les routes migrées Zod en production/staging
+**Objectif:** Tester les routes migrées Zod + Diagnostiquer problème ETL
 
-**Tests à effectuer:**
-- [ ] Routes API répondent correctement
-- [ ] Validation Zod fonctionne en production
+**Tests effectués:**
+- [x] Routes API répondent correctement
+- [x] Validation Zod fonctionne en production
 - [ ] Pas d'erreurs runtime
 - [ ] Performance acceptable
 
+**Problème ETL identifié:**
+- Bouton "Actualisation" échoue avec erreur 500
+- Diagnostic complet effectué dans DIAGNOSTIC-ETL.md
+- Solution implémentée : amélioration route /api/etl/run
+
+**Améliorations route ETL:**
+- ✅ Validation pré-exécution (fichier + variables)
+- ✅ Logger structuré (logger.info/error)
+- ✅ Messages d'erreur spécifiques
+- ✅ Extraction détails erreur (stderr, stdout)
+
+**Commits:**
+- Amélioration route /api/etl/run
+
 ---
 
-**Tâche complétée avec succès. Reprise pour tests en ligne.**
+**Tâche complétée avec succès. Fix ETL implémenté.**
+
+---
+
+### 2025-11-06 - Session Guillaume (Fix ETL + GSC Issues)
+
+**Objectif:** Résoudre problème ETL + Ajouter vérification automatique alertes GSC
+
+**Problème ETL résolu:**
+- ✅ Cause identifiée : exitCode 2 (succès partiel) considéré comme erreur
+- ✅ Solution : API accepte maintenant code 2 comme succès partiel
+- ✅ Extraction automatique des stats depuis stdout JSON
+- ✅ Messages informatifs : "ETL terminé avec succès partiel (10/11 sites réussi)"
+- ✅ Testé et validé en production
+
+**Fonctionnalité GSC Issues ajoutée:**
+- ✅ Fonction `verifyExistingIssues()` : vérifie alertes "open" des 90 derniers jours
+- ✅ Fonction `checkIfIssueStillExists()` : vérifie verdict GSC pour chaque URL
+- ✅ Marquage automatique "resolved" si verdict = PASS
+- ✅ Route API `/api/etl/run-issues` pour lancement manuel
+- ✅ Bouton "Vérifier les alertes GSC" dans l'UI
+- ✅ Rechargement automatique après ETL
+
+**Fichiers créés:**
+- `dashboard/app/api/etl/run-issues/route.ts` (nouvelle route API)
+- `.cursor/tasks/P1-000-DOC-ZOD-migration-termine/DIAGNOSTIC-ETL.md`
+- `.cursor/tasks/P1-000-DOC-ZOD-migration-termine/VOIR-LOGS-SERVEUR.md`
+- `.cursor/tasks/P1-000-DOC-ZOD-migration-termine/TEST-LOCAL.md`
+- `dashboard/fix-dev.sh` (script nettoyage cache)
+
+**Fichiers modifiés:**
+- `etl/gsc/fetch-issues.ts` (vérification automatique alertes)
+- `dashboard/app/api/etl/run/route.ts` (accepte exitCode 2)
+- `dashboard/app/gsc-issues/page.tsx` (bouton ETL)
+- `dashboard/.env.local` (configuration locale)
+
+**Commits:**
+- `19daa28` - fix(etl): Accepter exitCode 2 (succès partiel) comme succès
+- `771b275` - feat(gsc-issues): Vérification automatique des alertes résolues
+- `9ca153a` - feat(gsc-issues): Ajout bouton pour lancer ETL GSC Issues manuellement
+
+**Tests:**
+- ✅ ETL GSC principal testé en production (succès partiel fonctionne)
+- ✅ Route /api/etl/run-issues créée et prête
+- ✅ Configuration locale vérifiée (.env.local complet)
+- ⏳ Tests locaux à effectuer (serveur relancé, cache nettoyé)
+
+**Problèmes résolus:**
+- ✅ Erreur 500 sur bouton "Actualisation" → Résolu (accepte succès partiel)
+- ✅ Alertes GSC datent du 03/11 → Solution : bouton manuel + vérification auto
+- ✅ Problème front local (404 assets) → Résolu (cache nettoyé)
+
+**Statut:** ✅ Fonctionnalités implémentées, tests en cours
 
