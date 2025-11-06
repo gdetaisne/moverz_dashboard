@@ -13,7 +13,11 @@ const BQ_LOCATION = process.env.BQ_LOCATION || 'europe-west1'
  */
 export async function GET(request: NextRequest) {
   try {
-    logger.info('[serp/export-csv] Export CSV demandé')
+    logger.info('[serp/export-csv] Export CSV demandé', {
+      projectId: BQ_PROJECT_ID,
+      dataset: BQ_DATASET,
+      location: BQ_LOCATION,
+    })
 
     // Récupérer toutes les données de la table
     const query = `
@@ -54,10 +58,23 @@ export async function GET(request: NextRequest) {
       ORDER BY snapshot_date DESC, impressions DESC NULLS LAST
     `
 
-    const [rows] = await bigquery.query({
-      query,
-      location: BQ_LOCATION,
-    })
+    logger.info('[serp/export-csv] Exécution requête BigQuery')
+    
+    let rows: any[]
+    try {
+      const [result] = await bigquery.query({
+        query,
+        location: BQ_LOCATION,
+      })
+      rows = result as any[]
+    } catch (bqError: any) {
+      logger.error('[serp/export-csv] Erreur BigQuery:', {
+        message: bqError.message,
+        errors: bqError.errors,
+        code: bqError.code,
+      })
+      throw new Error(`Erreur BigQuery: ${bqError.message}`)
+    }
 
     logger.info(`[serp/export-csv] ${rows.length} lignes récupérées`)
 
@@ -144,12 +161,19 @@ export async function GET(request: NextRequest) {
       },
     })
   } catch (error: any) {
-    logger.error('[serp/export-csv] Erreur:', { error: error.message })
+    logger.error('[serp/export-csv] Erreur complète:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name,
+    })
+    console.error('[serp/export-csv] Erreur détaillée:', error)
+    
     return NextResponse.json(
       {
         success: false,
         message: 'Erreur lors de l\'export CSV',
-        error: error.message,
+        error: error.message || 'Erreur inconnue',
+        details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       },
       { status: 500 }
     )
