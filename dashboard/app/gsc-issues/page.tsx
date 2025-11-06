@@ -70,6 +70,8 @@ export default function GSCIssuesPage() {
   const [analysisResult, setAnalysisResult] = useState<{ success: boolean; message: string } | null>(null)
   const [latestInsight, setLatestInsight] = useState<any>(null)
   const [loadingInsight, setLoadingInsight] = useState(false)
+  const [etlLoading, setEtlLoading] = useState(false)
+  const [etlResult, setEtlResult] = useState<{ success: boolean; message: string } | null>(null)
 
   const domains = Array.from(new Set(issues.map(i => i.domain))).sort()
 
@@ -239,6 +241,44 @@ export default function GSCIssuesPage() {
     }
   }
 
+  async function runETLIssues() {
+    if (etlLoading) return
+
+    setEtlLoading(true)
+    setEtlResult(null)
+    try {
+      const response = await fetch('/api/etl/run-issues', {
+        method: 'POST',
+      })
+
+      const result = await response.json()
+
+      if (result.success) {
+        setEtlResult({
+          success: true,
+          message: result.data?.message || 'ETL lancé avec succès',
+        })
+        // Recharger les issues après un court délai pour laisser le temps à l'ETL
+        setTimeout(() => {
+          fetchIssues()
+        }, 3000)
+      } else {
+        setEtlResult({
+          success: false,
+          message: result.message || 'Erreur lors du lancement de l\'ETL',
+        })
+      }
+    } catch (error) {
+      console.error('Failed to run ETL:', error)
+      setEtlResult({
+        success: false,
+        message: 'Erreur lors du lancement de l\'ETL',
+      })
+    } finally {
+      setEtlLoading(false)
+    }
+  }
+
   useEffect(() => {
     fetchIssues()
     fetchLatestInsight()
@@ -301,6 +341,34 @@ export default function GSCIssuesPage() {
           <div className="bg-white rounded-lg shadow p-4">
             <div className="text-sm text-gray-600">Ouverts</div>
             <div className="text-2xl font-bold">{stats.by_status.open}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Résultat de l'ETL */}
+      {etlResult && (
+        <div className={`rounded-lg border-2 p-4 ${
+          etlResult.success
+            ? 'bg-green-50 border-green-300'
+            : 'bg-red-50 border-red-300'
+        }`}>
+          <div className="flex items-center gap-2">
+            {etlResult.success ? (
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-red-600" />
+            )}
+            <div className="flex-1">
+              <div className={`font-medium ${etlResult.success ? 'text-green-900' : 'text-red-900'}`}>
+                {etlResult.message}
+              </div>
+            </div>
+            <button
+              onClick={() => setEtlResult(null)}
+              className="text-gray-400 hover:text-gray-600"
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
@@ -381,10 +449,21 @@ export default function GSCIssuesPage() {
 
           <button
             onClick={fetchIssues}
-            className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 flex items-center gap-1"
+            disabled={loading}
+            className="px-3 py-1 bg-blue-600 text-white rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1"
           >
-            <RefreshCw className="h-4 w-4" />
+            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Actualiser
+          </button>
+
+          <button
+            onClick={runETLIssues}
+            disabled={etlLoading}
+            className="ml-2 px-4 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+            title="Vérifier les alertes GSC et mettre à jour la base de données"
+          >
+            <RefreshCw className={`h-4 w-4 ${etlLoading ? 'animate-spin' : ''}`} />
+            {etlLoading ? 'Vérification...' : 'Vérifier les alertes GSC'}
           </button>
 
           <button
