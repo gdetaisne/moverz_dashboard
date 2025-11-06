@@ -120,6 +120,7 @@ export async function getTimeSeriesData(site?: string, days: number = 30) {
 export async function getTopPages(site?: string, limit: number = 20) {
   // Try 1: prefer the materialized view gsc_pages_summary if present
   const siteFilter = site ? `WHERE domain = @site` : ''
+  const limitClauseView = (typeof limit === 'number' && limit > 0) ? 'LIMIT @limit' : ''
   const queryView = `
     SELECT 
       domain as domain,
@@ -131,16 +132,18 @@ export async function getTopPages(site?: string, limit: number = 20) {
     FROM \`${projectId}.${dataset}.gsc_pages_summary\`
     ${siteFilter}
     ORDER BY impressions DESC
-    LIMIT @limit
+    ${limitClauseView}
   `
 
   try {
-    const paramsView: Record<string, any> = { limit }
+    const paramsView: Record<string, any> = {}
+    if (typeof limit === 'number' && limit > 0) paramsView.limit = limit
     if (site) paramsView.site = site
     const [rows] = await bigquery.query({ query: queryView, params: paramsView })
     return rows as unknown as GSCPageMetrics[]
   } catch (e: any) {
     // Fallback: compute from gsc_daily_metrics (30 days)
+    const limitClauseFallback = (typeof limit === 'number' && limit > 0) ? 'LIMIT @limit' : ''
     const queryFallback = `
       WITH recent_data AS (
         SELECT 
@@ -158,9 +161,10 @@ export async function getTopPages(site?: string, limit: number = 20) {
       SELECT *
       FROM recent_data
       ORDER BY impressions DESC
-      LIMIT @limit
+      ${limitClauseFallback}
     `
-    const paramsFallback: Record<string, any> = { limit }
+    const paramsFallback: Record<string, any> = {}
+    if (typeof limit === 'number' && limit > 0) paramsFallback.limit = limit
     if (site) paramsFallback.site = site
     const [rows] = await bigquery.query({ query: queryFallback, params: paramsFallback })
     return rows as unknown as GSCPageMetrics[]

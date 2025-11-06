@@ -47,6 +47,8 @@ export default function SerpPage() {
   const exportLoadingRef = { current: false } // Ref pour éviter double-clic
   // Chargement uniquement sur action utilisateur
 
+  const limitLabel = useMemo(() => (limit === 0 ? 'Tous' : String(limit)), [limit])
+
   const endpoint = useMemo(() => {
     const params = new URLSearchParams()
     if (site) params.set('site', site)
@@ -223,7 +225,7 @@ export default function SerpPage() {
 
   return (
     <div className="p-6 space-y-4">
-      <h1 className="text-2xl font-semibold">SERP – Top {limit} (GSC)</h1>
+      <h1 className="text-2xl font-semibold">SERP – {limit === 0 ? 'Tous' : `Top ${limit}`} (GSC)</h1>
       <PageIntro
         finalite="Visualiser les requêtes/pages leaders et un aperçu SERP."
         tableaux={['Top 20 résultats (requêtes/pages)', 'Prévisualisation SERP']}
@@ -314,6 +316,17 @@ export default function SerpPage() {
             </button>
           ))}
           <button
+            onClick={() => setLimit(0)}
+            className={
+              'text-sm px-2 py-1 rounded border ' +
+              (limit === 0
+                ? 'bg-blue-600 text-white border-blue-700'
+                : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50')
+            }
+          >
+            Tous
+          </button>
+          <button
             onClick={loadData}
             className="ml-2 text-sm px-3 py-1 rounded border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-60"
             disabled={loading}
@@ -325,7 +338,7 @@ export default function SerpPage() {
             className="ml-4 text-sm px-4 py-1 rounded border bg-purple-600 text-white border-purple-700 hover:bg-purple-700 disabled:opacity-60 disabled:cursor-not-allowed font-semibold"
             disabled={auditLoading || loading}
           >
-            {auditLoading ? 'Audit en cours...' : `🔍 Audit TOP ${limit}`}
+            {auditLoading ? 'Audit en cours...' : `🔍 Audit ${limit === 0 ? 'TOUT' : `TOP ${limit}`}`}
           </button>
           <button
             onClick={() => exportToCSV('preview')}
@@ -342,7 +355,7 @@ export default function SerpPage() {
       {auditResult && (
         <div className="bg-white border border-purple-200 rounded-lg p-6 space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-purple-900">📊 Résultats Audit TOP {limit}</h2>
+            <h2 className="text-xl font-bold text-purple-900">📊 Résultats Audit {limit === 0 ? 'TOUT' : `TOP ${limit}`}</h2>
             <button
               onClick={() => exportToCSV('audit')}
               className="text-sm px-3 py-1 rounded border bg-purple-600 text-white border-purple-700 hover:bg-purple-700"
