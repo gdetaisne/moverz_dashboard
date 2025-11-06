@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
           etlScript,
           cwd: process.cwd(),
         },
-      } as ApiErrorResponse, { status: 500 })
+      }, { status: 500 })
     }
 
     // Vérifier les variables critiques avant exécution
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
         message: 'Variables d\'environnement manquantes',
         error: `Variables requises manquantes: ${missingVars.join(', ')}`,
         details: { missingVars },
-      } as ApiErrorResponse, { status: 500 })
+      }, { status: 500 })
     }
 
     // Préparer les variables d'environnement à passer au script
@@ -159,9 +159,11 @@ export async function POST(request: NextRequest) {
       userMessage = 'Script ETL ou dépendance non trouvé(e)'
     }
 
-    const errorResponse: ApiErrorResponse = {
+    // Retourner format compatible avec frontend qui attend 'message'
+    const errorResponse = {
       success: false,
-      error: userMessage + (error.message ? `: ${error.message}` : ''),
+      message: userMessage,
+      error: error.message || userMessage,
       details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
     }
 
