@@ -55,7 +55,7 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at
       FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.serp_metadata_snapshots\`
-      ORDER BY snapshot_date DESC, impressions DESC NULLS LAST
+      ORDER BY snapshot_date DESC, COALESCE(impressions, 0) DESC
     `
 
     logger.info('[serp/export-csv] Exécution requête BigQuery')
