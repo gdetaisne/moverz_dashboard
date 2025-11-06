@@ -1,8 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getBigQueryClient, BQ_PROJECT_ID, BQ_DATASET } from '@/lib/bigquery'
+import { getBigQueryClient } from '@/lib/bigquery'
 import { logger } from '@/lib/logger'
 
 const bigquery = getBigQueryClient()
+const BQ_PROJECT_ID = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
+const BQ_DATASET = process.env.BQ_DATASET || 'analytics_core'
 const BQ_LOCATION = process.env.BQ_LOCATION || 'europe-west1'
 
 /**
