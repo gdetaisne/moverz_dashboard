@@ -9,7 +9,9 @@
 
 ### Phase 1 - Audit & Infrastructure (2025-11-06)
 
-**Commit:** `0ba26ce` - feat(mobile): Phase 1 - Audit & Infrastructure terminée
+**Commits:** 
+- `e152101` - feat(mobile): Phase 1 - Audit & Infrastructure terminée (documentation)
+- `eedcebd` - feat(mobile): Ajout breakpoints Tailwind et audit mobile complet (code)
 
 **Date:** 2025-11-06  
 **Auteur:** Guillaume
