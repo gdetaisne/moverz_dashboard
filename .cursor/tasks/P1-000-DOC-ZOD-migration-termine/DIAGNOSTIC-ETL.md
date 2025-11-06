@@ -155,25 +155,52 @@ Ajouter des logs avant l'exécution pour diagnostiquer:
 ## 📊 État Actuel
 
 **En production:**
-- Route retourne toujours 500
+- Route retournait 500 toutes les fois
 - Message générique "Erreur lors du lancement de l'ETL"
 - Pas de détails sur l'erreur réelle
 
-**Probable cause:**
-- Variables d'environnement mal passées au processus enfant
-- Ou chemin incorrect en production
-- Ou `tsx` non disponible
+**Cause identifiée (via logs serveur):**
+- Le script ETL retourne `exitCode: 2` pour "succès partiel" (10/11 sites réussissent)
+- L'API `/api/etl/run` considérait tout code ≠ 0 comme une erreur
+- Donc même avec succès partiel, l'API retournait 500
+
+**Solution appliquée:**
+- Modifié l'API pour accepter le code `2` comme succès partiel
+- Le code `2` retourne maintenant `success: true` avec un message informatif
+- Extraction des stats depuis le stdout JSON pour afficher les résultats
+- Code `1` = échec complet (toujours considéré comme erreur)
 
 ---
 
-## 🎯 Prochaines Étapes
+## ✅ Solution Implémentée
 
-1. **Améliorer la route API** pour logger l'erreur exacte
-2. **Vérifier les logs serveur** en production
-3. **Tester avec variables complètes** pour reproduire
-4. **Ajouter validation** avant exécution
+### Changements dans `/api/etl/run`
+
+1. **Gestion des codes de sortie** :
+   - `0` = Succès complet → `success: true`
+   - `2` = Succès partiel → `success: true` avec message informatif
+   - `1` = Échec complet → `success: false` (500)
+
+2. **Extraction des stats** :
+   - Parse le stdout JSON pour extraire les stats de l'ETL
+   - Affiche `X/Y sites réussis` dans le message de succès
+
+3. **Messages améliorés** :
+   - Succès partiel : "ETL terminé avec succès partiel (10/11 sites réussi)"
+   - Inclut un warning si certains sites ont échoué
 
 ---
 
-**Diagnostic complet effectué. Problème identifié mais nécessite amélioration du code pour diagnostiquer précisément.**
+## 🎯 Tests à Effectuer
+
+1. **Tester en production** avec le bouton "Actualisation"
+2. **Vérifier que** :
+   - Le message de succès s'affiche correctement
+   - Les stats sont affichées (X/Y sites)
+   - Aucune pop-up d'erreur si succès partiel
+3. **Vérifier les logs** pour confirmer le comportement
+
+---
+
+**✅ SOLUTION APPLIQUÉE : L'API accepte maintenant les succès partiels (code 2) comme des succès.**
 

@@ -96,52 +96,145 @@ export async function POST(request: NextRequest) {
 
     // Lancer l'ETL
     const command = `npx tsx ${etlScript}`
-    const { stdout, stderr } = await execAsync(command, {
-      cwd: projectRoot,
-      timeout: 120000, // 2 minutes max
-      env: envVars,
-    })
+    
+    try {
+      const { stdout, stderr } = await execAsync(command, {
+        cwd: projectRoot,
+        timeout: 120000, // 2 minutes max
+        env: envVars,
+      })
 
-    logger.info('[etl/run] ETL terminé avec succès', {
-      stdoutLength: stdout?.length || 0,
-      stderrLength: stderr?.length || 0,
-    })
+      logger.info('[etl/run] ETL terminé avec succès (code 0)', {
+        stdoutLength: stdout?.length || 0,
+        stderrLength: stderr?.length || 0,
+      })
 
-    if (stdout) {
-      logger.debug('[etl/run] STDOUT', { stdout })
+      if (stdout) {
+        logger.debug('[etl/run] STDOUT', { stdout })
+      }
+      if (stderr) {
+        logger.warn('[etl/run] STDERR (non critique)', { stderr })
+      }
+
+      const response: ApiSuccessResponse = {
+        success: true,
+        data: {
+          message: 'ETL terminé avec succès',
+          timestamp: new Date().toISOString(),
+          stdout: stdout || null,
+        },
+        meta: {
+          script: etlScript,
+          duration: 'completed',
+        },
+      }
+
+      return NextResponse.json(response)
+    } catch (execError: any) {
+      // Extraire stdout/stderr même en cas d'erreur (ils peuvent contenir des infos utiles)
+      const stdout = execError.stdout || ''
+      const stderr = execError.stderr || ''
+      const exitCode = execError.code
+
+      // Code de sortie 2 = succès partiel (acceptable)
+      // Code de sortie 0 = succès complet (déjà géré dans le try)
+      // Code de sortie 1 = échec complet
+      if (exitCode === 2) {
+        logger.warn('[etl/run] ETL terminé avec succès partiel (code 2)', {
+          exitCode,
+          stdoutLength: stdout?.length || 0,
+          stderrLength: stderr?.length || 0,
+        })
+
+        // Parser le stdout pour extraire les stats JSON
+        let stats = null
+        try {
+          // Chercher le dernier log JSON qui contient les stats
+          const lines = stdout.split('\n').filter(Boolean)
+          for (let i = lines.length - 1; i >= 0; i--) {
+            try {
+              const parsed = JSON.parse(lines[i])
+              if (parsed.msg === 'ETL completed' || parsed.sitesProcessed) {
+                stats = parsed
+                break
+              }
+            } catch {
+              // Ignorer les lignes non-JSON
+            }
+          }
+        } catch {
+          // Si parsing échoue, continuer sans stats
+        }
+
+        const response: ApiSuccessResponse = {
+          success: true,
+          data: {
+            message: stats 
+              ? `ETL terminé avec succès partiel (${stats.successCount}/${stats.sitesProcessed} sites réussi)`
+              : 'ETL terminé avec succès partiel',
+            timestamp: new Date().toISOString(),
+            stdout: stdout || null,
+            warnings: stats?.failureCount > 0 ? [
+              `${stats.failureCount} site(s) ont échoué (voir logs pour détails)`
+            ] : undefined,
+          },
+          meta: {
+            script: etlScript,
+            duration: 'completed',
+            exitCode: 2,
+            stats: stats || undefined,
+          },
+        }
+
+        return NextResponse.json(response)
+      }
+
+      // Code 1 ou autre = vraie erreur
+      logger.error('[etl/run] ETL échoué', execError, {
+        route: '/api/etl/run',
+        exitCode,
+        stdoutLength: stdout?.length || 0,
+        stderrLength: stderr?.length || 0,
+      })
+
+      // Message d'erreur plus explicite
+      let userMessage = 'Erreur lors du lancement de l\'ETL'
+      if (exitCode === 1) {
+        userMessage = 'Le script ETL a complètement échoué. Vérifiez les logs serveur.'
+      } else if (execError.message?.includes('timeout')) {
+        userMessage = 'Le script ETL a dépassé le temps limite (2 minutes)'
+      } else if (execError.message?.includes('ENOENT')) {
+        userMessage = 'Script ETL ou dépendance non trouvé(e)'
+      }
+
+      const errorDetails: any = {
+        message: execError.message,
+        code: exitCode,
+        signal: execError.signal,
+      }
+
+      if (stderr) {
+        errorDetails.stderr = stderr
+      }
+      if (stdout) {
+        errorDetails.stdout = stdout
+      }
+
+      const errorResponse = {
+        success: false,
+        message: userMessage,
+        error: execError.message || userMessage,
+        details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
+      }
+
+      return NextResponse.json(errorResponse, { status: 500 })
     }
-    if (stderr) {
-      logger.warn('[etl/run] STDERR (non critique)', { stderr })
-    }
-
-    const response: ApiSuccessResponse = {
-      success: true,
-      data: {
-        message: 'ETL lancé avec succès',
-        timestamp: new Date().toISOString(),
-        stdout: stdout || null,
-      },
-      meta: {
-        script: etlScript,
-        duration: 'completed',
-      },
-    }
-
-    return NextResponse.json(response)
   } catch (error: any) {
-    // Extraire les détails de l'erreur
+    // Erreur non liée à l'exécution du script (ex: timeout général)
     const errorDetails: any = {
       message: error.message,
       code: (error as any).code,
       signal: (error as any).signal,
-    }
-
-    // Si c'est une erreur d'exécution, essayer d'extraire stderr
-    if ((error as any).stderr) {
-      errorDetails.stderr = (error as any).stderr
-    }
-    if ((error as any).stdout) {
-      errorDetails.stdout = (error as any).stdout
     }
 
     logger.error('[etl/run] Erreur lors du lancement de l\'ETL', error, {
@@ -149,17 +242,11 @@ export async function POST(request: NextRequest) {
       errorDetails,
     })
 
-    // Message d'erreur plus explicite
     let userMessage = 'Erreur lors du lancement de l\'ETL'
-    if (error.message?.includes('Command failed')) {
-      userMessage = 'Le script ETL a échoué. Vérifiez les logs serveur.'
-    } else if (error.message?.includes('timeout')) {
+    if (error.message?.includes('timeout')) {
       userMessage = 'Le script ETL a dépassé le temps limite (2 minutes)'
-    } else if (error.message?.includes('ENOENT')) {
-      userMessage = 'Script ETL ou dépendance non trouvé(e)'
     }
 
-    // Retourner format compatible avec frontend qui attend 'message'
     const errorResponse = {
       success: false,
       message: userMessage,
