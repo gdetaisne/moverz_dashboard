@@ -2,26 +2,10 @@
  * Utilitaires pour l'analyse SERP
  */
 
-import { BigQuery } from '@google-cloud/bigquery'
+import { getBigQueryClient, BQ_PROJECT_ID, BQ_DATASET } from './bigquery'
 
-const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
-const dataset = process.env.BQ_DATASET || 'analytics_core'
+const bigquery = getBigQueryClient()
 const location = process.env.BQ_LOCATION || 'europe-west1'
-
-// Parse credentials depuis env var
-let credentials: any
-try {
-  if (process.env.GCP_SA_KEY_JSON) {
-    credentials = JSON.parse(process.env.GCP_SA_KEY_JSON)
-  }
-} catch (error) {
-  console.error('Failed to parse GCP_SA_KEY_JSON:', error)
-}
-
-const bigquery = new BigQuery({
-  projectId,
-  credentials,
-})
 
 export function inferIntentFromContent(
   pageUrl: string,
@@ -102,7 +86,7 @@ export async function getCTRBenchmarksByIntent(site?: string): Promise<Record<st
         impressions,
         ctr,
         ROW_NUMBER() OVER (PARTITION BY domain, intent ORDER BY impressions DESC) as rank_impressions
-      FROM \`${projectId}.${dataset}.serp_snapshots\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.serp_snapshots\`
       WHERE snapshot_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
         AND intent IS NOT NULL
         ${siteFilter}

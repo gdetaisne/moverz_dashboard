@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { getTopPages, getTotalImpressionsLast30Days } from '@/lib/bigquery'
-import { BigQuery } from '@google-cloud/bigquery'
+import { z } from 'zod'
+import { getTopPages, getTotalImpressionsLast30Days, getBigQueryClient, BQ_DATASET } from '@/lib/bigquery'
 import { inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore, getCTRBenchmarksByIntent } from '@/lib/serp-utils'
+import { validateQuery, handleZodError } from '@/lib/api-helpers'
+import type { ApiSuccessResponse } from '@/lib/api-helpers'
+import { serpPreviewQuerySchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
-const bigquery = new BigQuery({
-  projectId: process.env.GCP_PROJECT_ID || 'moverz-dashboard',
-  keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-})
-const BQ_DATASET = process.env.BQ_DATASET || 'analytics_core'
+const bigquery = getBigQueryClient()
 const BQ_LOCATION = process.env.BQ_LOCATION || 'europe-west1'
 
 type SerpPreview = {
@@ -190,9 +190,10 @@ function parseHtmlForSerp(
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const site = searchParams.get('site') || undefined
-    const limit = parseInt(searchParams.get('limit') || '20', 10)
+    // ✅ Validation Zod : site (optionnel), limit (0-10000, default=20, 0=pas de limite)
+    const params = validateQuery(request.nextUrl.searchParams, serpPreviewQuerySchema)
+    const site = params.site
+    const limit = params.limit
 
     const pages = await getTopPages(site, limit)
     const totalImpr = await getTotalImpressionsLast30Days()
@@ -210,7 +211,7 @@ export async function GET(request: NextRequest) {
           const now = Date.now()
           
           try {
-            console.log(`🔍 Fetching SERP for: ${pageUrl}`)
+            logger.debug(`Fetching SERP preview for ${pageUrl}`)
             
             // Timeout explicite 5s
             const controller = new AbortController()
@@ -325,12 +326,23 @@ export async function GET(request: NextRequest) {
 
     // Sauvegarder snapshot automatiquement (non-bloquant)
     saveSnapshot(results).catch((err) => {
-      console.error('❌ Error saving SERP snapshot:', err)
+      logger.error('Failed to save SERP snapshot', err, { route: '/api/serp/preview' })
       // Ne pas faire échouer la requête si snapshot échoue
     })
 
+    const response: ApiSuccessResponse<SerpPreview[]> = {
+      success: true,
+      data: results,
+      meta: {
+        site: site || 'all',
+        count: results.length,
+        totalImpressions30d: totalImpr,
+        limit: limit,
+      }
+    }
+    
     return new NextResponse(
-      JSON.stringify({ success: true, data: results, meta: { site: site || 'all', count: results.length, totalImpressions30d: totalImpr } }),
+      JSON.stringify(response),
       {
         status: 200,
         headers: {
@@ -340,9 +352,17 @@ export async function GET(request: NextRequest) {
         },
       }
     )
-  } catch (error: any) {
-    console.error('API /serp/preview error:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    // Si erreur Zod, retourner 400 avec détails
+    if (error instanceof z.ZodError) {
+      return handleZodError(error)
+    }
+    
+    logger.error('[serp/preview] API error', error, { route: '/api/serp/preview' })
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
 

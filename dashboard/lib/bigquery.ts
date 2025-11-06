@@ -1,30 +1,89 @@
-import { BigQuery } from '@google-cloud/bigquery'
+import { BigQuery, BigQueryOptions } from '@google-cloud/bigquery'
+import { logger } from './logger'
 
-const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
-const dataset = process.env.BQ_DATASET || 'analytics_core'
-
-// Parse credentials depuis env var
-let credentials: any
-try {
-  if (process.env.GCP_SA_KEY_JSON) {
-    credentials = JSON.parse(process.env.GCP_SA_KEY_JSON)
-  }
-} catch (error) {
-  console.error('Failed to parse GCP_SA_KEY_JSON:', error)
+// Types pour les credentials GCP
+interface ServiceAccountCredentials {
+  type: string
+  project_id: string
+  private_key_id: string
+  private_key: string
+  client_email: string
+  client_id: string
+  auth_uri: string
+  token_uri: string
+  auth_provider_x509_cert_url: string
+  client_x509_cert_url: string
 }
 
-export const bigquery = new BigQuery(
-  credentials
-    ? { projectId, credentials }
-    : {
-        projectId,
-        keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-      }
-)
+interface BigQueryClientConfig {
+  projectId: string
+  credentials?: ServiceAccountCredentials
+  keyFilename?: string
+}
 
+/**
+ * Configuration BigQuery depuis les variables d'environnement
+ */
+function getBigQueryConfig(): BigQueryClientConfig {
+  const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
+
+  // Priorité 1: GCP_SA_KEY_JSON (pour déploiements containerisés)
+  if (process.env.GCP_SA_KEY_JSON) {
+    try {
+      const credentials = JSON.parse(process.env.GCP_SA_KEY_JSON) as ServiceAccountCredentials
+      return { projectId, credentials }
+    } catch (error) {
+      logger.error('Failed to parse GCP_SA_KEY_JSON', error)
+      // Continue avec fallback
+    }
+  }
+
+  // Priorité 2: GOOGLE_APPLICATION_CREDENTIALS (fichier local)
+  if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    return {
+      projectId,
+      keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
+    }
+  }
+
+  // Fallback: client sans credentials (pour dev local)
+  return { projectId }
+}
+
+/**
+ * Crée une instance BigQuery configurée
+ * Cette fonction est centralisée pour éviter la duplication
+ */
+export function getBigQueryClient(): BigQuery {
+  const config = getBigQueryConfig()
+  
+  // Construire les options BigQuery
+  const options: BigQueryOptions = {
+    projectId: config.projectId,
+  }
+
+  if (config.credentials) {
+    options.credentials = config.credentials
+  } else if (config.keyFilename) {
+    options.keyFilename = config.keyFilename
+  }
+
+  return new BigQuery(options)
+}
+
+// Instance par défaut (pour compatibilité avec code existant)
+export const bigquery = getBigQueryClient()
+
+/**
+ * Vérifie si les credentials BigQuery sont disponibles
+ */
 export function hasBigQueryCredentials(): boolean {
   return Boolean(process.env.GCP_SA_KEY_JSON || process.env.GOOGLE_APPLICATION_CREDENTIALS)
 }
+
+// Dataset config
+export const BQ_PROJECT_ID = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
+export const BQ_DATASET = process.env.BQ_DATASET || 'analytics_core'
 
 // Types
 export interface GSCGlobalMetrics {
@@ -64,7 +123,7 @@ export async function getGlobalMetrics(days: number = 7): Promise<SiteMetrics[]>
         SUM(impressions) as impressions,
         AVG(ctr) as ctr,
         AVG(position) as position
-      FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
       GROUP BY domain
     ),
@@ -73,7 +132,7 @@ export async function getGlobalMetrics(days: number = 7): Promise<SiteMetrics[]>
         domain as site,
         SUM(clicks) as prev_clicks,
         SUM(impressions) as prev_impressions
-      FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_daily_aggregated\`
       WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days * 2} DAY)
         AND date < DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
       GROUP BY domain
@@ -106,7 +165,7 @@ export async function getTimeSeriesData(site?: string, days: number = 30) {
       SUM(impressions) as impressions,
       AVG(ctr) as ctr,
       AVG(position) as position
-    FROM \`${projectId}.${dataset}.gsc_daily_aggregated\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_daily_aggregated\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL ${days} DAY)
       ${siteFilter}
     GROUP BY date, domain
@@ -129,7 +188,7 @@ export async function getTopPages(site?: string, limit: number = 20) {
       impressions as impressions,
       ctr as ctr,
       avg_position as position
-    FROM \`${projectId}.${dataset}.gsc_pages_summary\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_pages_summary\`
     ${siteFilter}
     ORDER BY impressions DESC
     ${limitClauseView}
@@ -153,7 +212,7 @@ export async function getTopPages(site?: string, limit: number = 20) {
           SUM(impressions) AS impressions,
           SAFE_DIVIDE(SUM(clicks), SUM(impressions)) AS ctr,
           AVG(position) AS position
-        FROM \`${projectId}.${dataset}.gsc_daily_metrics\`
+        FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_daily_metrics\`
         WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
           ${site ? 'AND domain = @site' : ''}
         GROUP BY domain, page
@@ -174,7 +233,7 @@ export async function getTopPages(site?: string, limit: number = 20) {
 export async function getTotalImpressionsLast30Days(): Promise<number> {
   const query = `
     SELECT SUM(impressions) AS total_impressions
-    FROM \`${projectId}.${dataset}.gsc_daily_metrics\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_daily_metrics\`
     WHERE date >= DATE_SUB(CURRENT_DATE(), INTERVAL 30 DAY)
   `
   const [rows] = await bigquery.query({ query })
@@ -222,7 +281,7 @@ export interface Error404Evolution {
 export async function insertError404History(entry: Omit<Error404HistoryEntry, 'created_at'>) {
   // Utiliser table.insert() qui gère mieux les conversions de types automatiquement
   // BigQuery convertit automatiquement les objets JS en JSON et les Date en TIMESTAMP
-  const table = bigquery.dataset(dataset).table('errors_404_history')
+  const table = bigquery.dataset(BQ_DATASET).table('errors_404_history')
   
   const row = {
     id: entry.id,
@@ -239,47 +298,46 @@ export async function insertError404History(entry: Omit<Error404HistoryEntry, 'c
   
   try {
     await table.insert([row])
-    console.log(`[BigQuery insertError404History] ✅ Inserted scan ${entry.id}`)
+    logger.info(`[BigQuery insertError404History] ✅ Inserted scan ${entry.id}`)
   } catch (error: any) {
     // BigQuery peut retourner des erreurs dans error.errors[] au lieu de error.message
     const errorMessage = error.message || error.toString() || 'Unknown error'
     const errorDetails = error.errors || error.response?.errors || []
     
-    console.error('[BigQuery insertError404History] Error:', error)
-    console.error('[BigQuery insertError404History] Error details:', {
-      message: errorMessage,
-      code: error.code,
-      errors: errorDetails,
-      response: error.response,
-      stack: error.stack,
-    })
-    console.error('[BigQuery insertError404History] Row:', {
-      id: row.id,
-      scan_date: row.scan_date,
-      total_sites: row.total_sites,
-      total_pages_checked: row.total_pages_checked,
-      total_errors_404: row.total_errors_404,
-      sites_results_type: typeof row.sites_results,
-      sites_results_length: Array.isArray(row.sites_results) ? row.sites_results.length : 'not array',
-      crawl_duration_seconds: row.crawl_duration_seconds,
+    logger.error('[BigQuery insertError404History] Failed to insert', error, {
+      entryId: entry.id,
+      errorDetails: {
+        message: errorMessage,
+        code: error.code,
+        errors: errorDetails,
+      },
+      rowContext: {
+        id: row.id,
+        scan_date: row.scan_date,
+        total_sites: row.total_sites,
+        total_pages_checked: row.total_pages_checked,
+        total_errors_404: row.total_errors_404,
+      },
     })
     
     // Créer une erreur enrichie avec tous les détails disponibles
     const enrichedError = new Error(errorMessage)
-    ;(enrichedError as any).code = error.code
-    ;(enrichedError as any).errors = errorDetails
-    ;(enrichedError as any).originalError = error
+    Object.assign(enrichedError, {
+      code: error.code,
+      errors: errorDetails,
+      originalError: error,
+    })
     throw enrichedError
   }
 }
 
 export async function getError404Evolution(days: number = 30): Promise<Error404Evolution[]> {
   if (!hasBigQueryCredentials()) {
-    console.warn('[BigQuery getError404Evolution] No credentials in dev → returning empty evolution')
+    logger.warn('[BigQuery getError404Evolution] No credentials in dev → returning empty evolution')
     return []
   }
   try {
-    console.log(`[BigQuery getError404Evolution] Querying with days=${days}`)
+    logger.debug(`[BigQuery getError404Evolution] Querying with days=${days}`)
     
     // Joindre avec broken_links pour compter les liens cassés par jour
     const query = `
@@ -293,7 +351,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
           CAST(MAX(total_errors_404) AS INT64) as max_errors_404,
           CAST(MIN(total_errors_404) AS INT64) as min_errors_404,
           CAST(AVG(crawl_duration_seconds) AS INT64) as avg_duration_seconds
-        FROM \`${projectId}.${dataset}.errors_404_history\`
+        FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_history\`
         WHERE scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
         GROUP BY DATE(scan_date), FORMAT_TIMESTAMP('%Y-%m-%dT00:00:00', TIMESTAMP(DATE(scan_date)))
       ),
@@ -301,7 +359,7 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
         SELECT 
           DATE(bl.scan_date) as scan_day,
           COUNT(DISTINCT CONCAT(bl.site, '|', bl.source_url, '|', bl.target_url)) as total_broken_links
-        FROM \`${projectId}.${dataset}.broken_links\` bl
+        FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\` bl
         WHERE bl.scan_date >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL ${days} DAY)
         GROUP BY DATE(bl.scan_date)
       )
@@ -319,9 +377,9 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
       ORDER BY ds.date DESC
     `
     
-    console.log(`[BigQuery getError404Evolution] Executing query on ${projectId}.${dataset}`)
+    logger.debug(`[BigQuery getError404Evolution] Executing query on ${BQ_PROJECT_ID}.${BQ_DATASET}`)
     const [rows] = await bigquery.query({ query })
-    console.log(`[BigQuery getError404Evolution] Query returned ${rows?.length || 0} rows`)
+    logger.debug(`[BigQuery getError404Evolution] Query returned ${rows?.length || 0} rows`)
     
     // Convertir les résultats avec types corrects
     const results = (rows || []).map(row => ({
@@ -335,18 +393,17 @@ export async function getError404Evolution(days: number = 30): Promise<Error404E
       avg_duration_seconds: Number(row.avg_duration_seconds || 0),
     }))
     
-    console.log(`[BigQuery getError404Evolution] Converted ${results.length} results`, results.length > 0 ? results[0] : 'no data')
+    logger.debug(`[BigQuery getError404Evolution] Converted ${results.length} results`)
     return results
   } catch (error: any) {
-    console.error(`[BigQuery getError404Evolution] Error:`, error)
-    console.error(`[BigQuery getError404Evolution] Stack:`, error.stack)
+    logger.error('[BigQuery getError404Evolution] Query failed', error, { days })
     throw error
   }
 }
 
 export async function getLastError404Scan(): Promise<Error404HistoryEntry | null> {
   if (!hasBigQueryCredentials()) {
-    console.warn('[BigQuery getLastError404Scan] No credentials in dev → returning null')
+    logger.warn('[BigQuery getLastError404Scan] No credentials in dev → returning null')
     return null
   }
   const query = `
@@ -359,10 +416,10 @@ export async function getLastError404Scan(): Promise<Error404HistoryEntry | null
       sites_results,
       crawl_duration_seconds,
       created_at
-    FROM \`${projectId}.${dataset}.errors_404_history\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_history\`
     WHERE scan_date = (
       SELECT MAX(scan_date) 
-      FROM \`${projectId}.${dataset}.errors_404_history\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_history\`
     )
     LIMIT 1
   `
@@ -395,7 +452,7 @@ export async function insertError404UrlsScan(scan: Error404UrlScan) {
   if (scan.entries.length === 0) return
   
   const query = `
-    INSERT INTO \`${projectId}.${dataset}.errors_404_urls\`
+    INSERT INTO \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
     (scan_id, scan_date, site, path, status, commit_sha, branch, actor, repo)
     SELECT 
       @scan_id,
@@ -411,7 +468,7 @@ export async function insertError404UrlsScan(scan: Error404UrlScan) {
   `
   
   // Utiliser table.insert() pour éviter problèmes avec null dans query params
-  const table = bigquery.dataset(dataset).table('errors_404_urls')
+  const table = bigquery.dataset(BQ_DATASET).table('errors_404_urls')
   
   const rows = scan.entries.map(entry => ({
     scan_id: scan.scan_id,
@@ -446,7 +503,7 @@ export async function insertBrokenLinksScan(scan: BrokenLinksScan) {
   if (scan.links.length === 0) return
   
   const query = `
-    INSERT INTO \`${projectId}.${dataset}.broken_links\`
+    INSERT INTO \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
     (scan_id, scan_date, site, source_url, target_url, commit_sha, branch, actor, repo)
     SELECT 
       @scan_id,
@@ -462,7 +519,7 @@ export async function insertBrokenLinksScan(scan: BrokenLinksScan) {
   `
   
   // Utiliser table.insert() pour éviter problèmes avec null dans query params
-  const table = bigquery.dataset(dataset).table('broken_links')
+  const table = bigquery.dataset(BQ_DATASET).table('broken_links')
   
   const rows = scan.links.map(link => ({
     scan_id: scan.scan_id,
@@ -506,7 +563,7 @@ export async function getError404Delta(params: { from?: string; to?: string }): 
   // 1) Essayer de prendre les 2 derniers scan_id présents dans errors_404_urls
   const urlsScanQuery = `
     SELECT DISTINCT scan_id, MAX(scan_date) AS scan_date
-    FROM \`${projectId}.${dataset}.errors_404_urls\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
     GROUP BY scan_id
     ORDER BY scan_date DESC
     LIMIT 2
@@ -522,7 +579,7 @@ export async function getError404Delta(params: { from?: string; to?: string }): 
   } else {
     const historyScanQuery = `
       SELECT id, scan_date
-      FROM \`${projectId}.${dataset}.errors_404_history\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_history\`
       ORDER BY scan_date DESC
       LIMIT 2
     `
@@ -536,12 +593,12 @@ export async function getError404Delta(params: { from?: string; to?: string }): 
   const deltaQuery = `
     WITH from_data AS (
       SELECT site, path
-      FROM \`${projectId}.${dataset}.errors_404_urls\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
       WHERE scan_id = @from_scan_id
     ),
     to_data AS (
       SELECT site, path
-      FROM \`${projectId}.${dataset}.errors_404_urls\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
       WHERE scan_id = @to_scan_id
     ),
     gained AS (
@@ -612,7 +669,7 @@ export async function getBrokenLinksDelta(params: { from?: string; to?: string }
   // 1) Essayer de prendre les 2 derniers scan_id présents dans broken_links
   const blScanQuery = `
     SELECT DISTINCT scan_id, MAX(scan_date) AS scan_date
-    FROM \`${projectId}.${dataset}.broken_links\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
     GROUP BY scan_id
     ORDER BY scan_date DESC
     LIMIT 2
@@ -628,7 +685,7 @@ export async function getBrokenLinksDelta(params: { from?: string; to?: string }
   } else {
     const historyScanQuery = `
       SELECT id, scan_date
-      FROM \`${projectId}.${dataset}.errors_404_history\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_history\`
       ORDER BY scan_date DESC
       LIMIT 2
     `
@@ -641,12 +698,12 @@ export async function getBrokenLinksDelta(params: { from?: string; to?: string }
   const deltaQuery = `
     WITH from_data AS (
       SELECT site, source_url, target_url
-      FROM \`${projectId}.${dataset}.broken_links\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
       WHERE scan_id = @from_scan_id
     ),
     to_data AS (
       SELECT site, source_url, target_url
-      FROM \`${projectId}.${dataset}.broken_links\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
       WHERE scan_id = @to_scan_id
     ),
     gained AS (
@@ -736,12 +793,12 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
   const detailQuery = `
     WITH urls AS (
       SELECT site, path
-      FROM \`${projectId}.${dataset}.errors_404_urls\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
       WHERE scan_id = @scan_id
     ),
     links AS (
       SELECT site, source_url, target_url
-      FROM \`${projectId}.${dataset}.broken_links\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
       WHERE scan_id = @scan_id
     )
     SELECT 
@@ -791,11 +848,11 @@ export async function getLastReconstructedScan(): Promise<ReconstructedScanRespo
 
 export async function getLastScansAsEvolution(limit: number = 20): Promise<Error404Evolution[]> {
   if (!hasBigQueryCredentials()) {
-    console.warn('[BigQuery getLastScansAsEvolution] No credentials in dev → returning empty list')
+    logger.warn('[BigQuery getLastScansAsEvolution] No credentials in dev → returning empty list')
     return []
   }
   try {
-    console.log(`[BigQuery getLastScansAsEvolution] Querying with limit=${limit}`)
+    logger.debug(`[BigQuery getLastScansAsEvolution] Querying with limit=${limit}`)
     
     // Compter 404 via la table détaillée errors_404_urls (plus robuste)
     // et joindre avec broken_links pour les liens cassés visibles par scan
@@ -806,7 +863,7 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
           FORMAT_TIMESTAMP('%Y-%m-%dT%H:%M:%S', scan_date) as date,
           total_pages_checked,
           crawl_duration_seconds
-        FROM \`${projectId}.${dataset}.errors_404_history\`
+        FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_history\`
         ORDER BY scan_date DESC
         LIMIT @limit
       ),
@@ -814,7 +871,7 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
         SELECT 
           scan_id,
           COUNT(DISTINCT CONCAT(site, '|', path)) as total_404_urls
-        FROM \`${projectId}.${dataset}.errors_404_urls\`
+        FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
         WHERE scan_id IN (SELECT id FROM scan_history)
         GROUP BY scan_id
       ),
@@ -822,7 +879,7 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
         SELECT 
           scan_id,
           COUNT(DISTINCT CONCAT(site, '|', source_url, '|', target_url)) as total_broken_links
-        FROM \`${projectId}.${dataset}.broken_links\`
+        FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
         WHERE scan_id IN (SELECT id FROM scan_history)
         GROUP BY scan_id
       )
@@ -841,12 +898,12 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
       ORDER BY sh.date DESC
     `
     
-    console.log(`[BigQuery getLastScansAsEvolution] Executing query on ${projectId}.${dataset}`)
+    logger.debug(`[BigQuery getLastScansAsEvolution] Executing query on ${BQ_PROJECT_ID}.${BQ_DATASET}`)
     const [rows] = await bigquery.query({
       query,
       params: { limit },
     })
-    console.log(`[BigQuery getLastScansAsEvolution] Query returned ${rows?.length || 0} rows`)
+    logger.debug(`[BigQuery getLastScansAsEvolution] Query returned ${rows?.length || 0} rows`)
     
     // Convertir les résultats et inverser l'ordre (plus ancien en premier)
     const results = (rows || []).map(row => ({
@@ -860,11 +917,10 @@ export async function getLastScansAsEvolution(limit: number = 20): Promise<Error
       avg_duration_seconds: Number(row.avg_duration_seconds || 0),
     }))
     
-    console.log(`[BigQuery getLastScansAsEvolution] Converted ${results.length} results`, results.length > 0 ? results[0] : 'no data')
+    logger.debug(`[BigQuery getLastScansAsEvolution] Converted ${results.length} results`)
     return results.reverse()
   } catch (error: any) {
-    console.error(`[BigQuery getLastScansAsEvolution] Error:`, error)
-    console.error(`[BigQuery getLastScansAsEvolution] Stack:`, error.stack)
+    logger.error('[BigQuery getLastScansAsEvolution] Query failed', error, { limit })
     throw error
   }
 }
@@ -885,7 +941,7 @@ export async function cloneError404UrlsFromPreviousScan(params: {
 }): Promise<void> {
   if (!params.sites || params.sites.length === 0) return
   const query = `
-    INSERT INTO \`${projectId}.${dataset}.errors_404_urls\`
+    INSERT INTO \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
     (scan_id, scan_date, site, path, status, commit_sha, branch, actor, repo)
     SELECT 
       @new_scan_id,
@@ -897,7 +953,7 @@ export async function cloneError404UrlsFromPreviousScan(params: {
       @branch,
       @actor,
       @repo
-    FROM \`${projectId}.${dataset}.errors_404_urls\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.errors_404_urls\`
     WHERE scan_id = @prev_scan_id AND site IN UNNEST(@sites)
   `
   await bigquery.query({
@@ -927,7 +983,7 @@ export async function cloneBrokenLinksFromPreviousScan(params: {
 }): Promise<void> {
   if (!params.sites || params.sites.length === 0) return
   const query = `
-    INSERT INTO \`${projectId}.${dataset}.broken_links\`
+    INSERT INTO \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
     (scan_id, scan_date, site, source_url, target_url, commit_sha, branch, actor, repo)
     SELECT 
       @new_scan_id,
@@ -939,7 +995,7 @@ export async function cloneBrokenLinksFromPreviousScan(params: {
       @branch,
       @actor,
       @repo
-    FROM \`${projectId}.${dataset}.broken_links\`
+    FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.broken_links\`
     WHERE scan_id = @prev_scan_id AND site IN UNNEST(@sites)
   `
   await bigquery.query({

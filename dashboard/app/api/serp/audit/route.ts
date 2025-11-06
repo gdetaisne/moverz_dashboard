@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getTopPages } from '@/lib/bigquery'
 import { getCTRBenchmarksByIntent, inferIntentFromContent, calculateIntentMatchScore, calculateLengthScore } from '@/lib/serp-utils'
+import { validateQuery, handleZodError } from '@/lib/api-helpers'
+import type { ApiSuccessResponse } from '@/lib/api-helpers'
+import { serpAuditQuerySchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 // Note: maxDuration est supporté depuis Next.js 14.1+, mais peut causer des erreurs de build
@@ -76,12 +81,14 @@ type AuditResult = {
 
 export async function POST(request: NextRequest) {
   const startTime = Date.now()
-  const searchParams = request.nextUrl.searchParams
-  const site = searchParams.get('site') || undefined
-  const limit = parseInt(searchParams.get('limit') || '20', 10)
-
+  
   try {
-    console.log(`🔍 Démarrage audit SERP${site ? ` (site: ${site})` : ''}, limite: ${limit}`)
+    // ✅ Validation Zod : site (optionnel), limit (1-10000, default=20)
+    const params = validateQuery(request.nextUrl.searchParams, serpAuditQuerySchema)
+    const site = params.site
+    const limit = params.limit
+    
+    logger.info('Starting SERP audit', { site: site || 'all', limit })
     
     // 1. Récupérer les pages selon la sélection actuelle
     const pages = await getTopPages(site, limit)
@@ -209,10 +216,10 @@ export async function POST(request: NextRequest) {
       const chunk = pages.slice(i, i + concurrency)
       const results = await Promise.all(chunk.map(p => fetchPage(p)))
       crawled.push(...results.filter(Boolean))
-      console.log(`📊 Progression: ${crawled.length}/${pages.length} pages crawlees`)
+      logger.debug(`Crawl progress`, { crawled: crawled.length, total: pages.length })
     }
     
-    console.log(`✅ Crawl terminé: ${crawled.length} succès, ${failed.length} échecs`)
+    logger.info(`Crawl completed`, { success: crawled.length, failed: failed.length })
     
     // 4. Analyse et regroupement
     const meta_formats = {
@@ -404,9 +411,17 @@ export async function POST(request: NextRequest) {
     }
     
     return NextResponse.json({ success: true, data: result })
-  } catch (error: any) {
-    console.error('❌ Erreur audit SERP:', error)
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  } catch (error) {
+    // Si erreur Zod, retourner 400 avec détails
+    if (error instanceof z.ZodError) {
+      return handleZodError(error)
+    }
+    
+    logger.error('[serp/audit] API error', error, { route: '/api/serp/audit' })
+    return NextResponse.json(
+      { success: false, error: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    )
   }
 }
 

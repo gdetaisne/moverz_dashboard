@@ -1,35 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { BigQuery } from '@google-cloud/bigquery'
+import { getBigQueryClient, BQ_PROJECT_ID, BQ_DATASET } from '@/lib/bigquery'
 import type { GSCIssue } from '@/lib/types/gsc'
 
-// Configuration BigQuery avec support GCP_SA_KEY_JSON ou GOOGLE_APPLICATION_CREDENTIALS
-function getBigQueryClient() {
-  const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
-  
-  // Si GCP_SA_KEY_JSON est fourni (comme dans CapRover), l'utiliser
-  if (process.env.GCP_SA_KEY_JSON) {
-    try {
-      const credentials = JSON.parse(process.env.GCP_SA_KEY_JSON)
-      return new BigQuery({
-        projectId,
-        credentials,
-      })
-    } catch (error) {
-      console.error('Error parsing GCP_SA_KEY_JSON:', error)
-    }
-  }
-  
-  // Sinon utiliser GOOGLE_APPLICATION_CREDENTIALS (fichier)
-  return new BigQuery({
-    projectId,
-    keyFilename: process.env.GOOGLE_APPLICATION_CREDENTIALS,
-  })
-}
-
 const bigquery = getBigQueryClient()
-
-const projectId = process.env.GCP_PROJECT_ID || 'moverz-dashboard'
-const dataset = process.env.BQ_DATASET || 'analytics_core'
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
@@ -69,7 +42,7 @@ export async function GET(request: NextRequest) {
         resolved_at,
         gsc_notification_id,
         source
-      FROM \`${projectId}.${dataset}.gsc_issues\`
+      FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.gsc_issues\`
       ${whereClause}
       ORDER BY 
         CASE severity 

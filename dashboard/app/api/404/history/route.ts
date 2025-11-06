@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { z } from 'zod'
 import { getError404Evolution, getLastError404Scan, getLastScansAsEvolution, hasBigQueryCredentials } from '@/lib/bigquery'
+import { validateQuery, handleZodError } from '@/lib/api-helpers'
+import type { ApiSuccessResponse } from '@/lib/api-helpers'
+import { error404HistoryQuerySchema } from '@/lib/schemas/api'
+import { logger } from '@/lib/logger'
 
 export const dynamic = 'force-dynamic'
 
@@ -9,71 +14,57 @@ export const dynamic = 'force-dynamic'
  */
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const days = parseInt(searchParams.get('days') || '30', 10)
-    const count = parseInt(searchParams.get('count') || '20', 10)
-    const mode = (searchParams.get('mode') || 'last').toLowerCase()
+    // ✅ Validation Zod : days (1-365), count (1-100), mode ('last' | 'evolution')
+    const params = validateQuery(request.nextUrl.searchParams, error404HistoryQuerySchema)
     
     // Dev fallback: pas de credentials BQ → renvoyer 200 avec données vides
     if (!hasBigQueryCredentials()) {
-      return NextResponse.json({
+      const response: ApiSuccessResponse = {
         success: true,
         data: { evolution: [], lastScan: null },
-        meta: { days, count: 0, mode, credentials: 'missing' },
-      })
+        meta: { days: params.days, count: 0, mode: params.mode, credentials: 'missing' },
+      }
+      return NextResponse.json(response)
     }
 
     // Mode par défaut demandé: derniers crawls (non agrégés)
-    const evolution = mode === 'last'
-      ? await getLastScansAsEvolution(count)
-      : await getError404Evolution(days)
+    const evolution = params.mode === 'last'
+      ? await getLastScansAsEvolution(params.count)
+      : await getError404Evolution(params.days)
     
     // Récupérer le dernier scan
     const lastScan = await getLastError404Scan()
     
-    console.log(`[404/history] Mode: ${mode}, Loaded ${evolution?.length || 0} evolution entries, lastScan: ${lastScan ? 'exists' : 'null'}`)
-    console.log(`[404/history] Evolution type:`, typeof evolution, Array.isArray(evolution) ? 'array' : 'not array')
-    if (evolution && evolution.length > 0) {
-      console.log(`[404/history] First entry:`, JSON.stringify(evolution[0], null, 2))
-      console.log(`[404/history] Last entry:`, JSON.stringify(evolution[evolution.length - 1], null, 2))
-      console.log(`[404/history] All entries:`, JSON.stringify(evolution, null, 2))
-    } else {
-      console.warn(`[404/history] No evolution data returned!`, {
-        evolution,
-        evolutionType: typeof evolution,
-        isArray: Array.isArray(evolution),
-        mode,
-        days,
-        count,
-      })
-    }
+    logger.debug('[404/history] Data loaded', {
+      mode: params.mode,
+      evolutionCount: evolution?.length || 0,
+      hasLastScan: !!lastScan,
+    })
     
-    return NextResponse.json({
+    const response: ApiSuccessResponse = {
       success: true,
       data: {
         evolution: evolution || [],
         lastScan: lastScan || null,
       },
-      meta: { days, count: evolution?.length || 0, mode }
-    })
-  } catch (error: any) {
-    console.error('[404/history] API error:', error)
-    console.error('[404/history] Stack:', error.stack)
-    console.error('[404/history] Full error:', JSON.stringify(error, Object.getOwnPropertyNames(error), 2))
+      meta: { days: params.days, count: evolution?.length || 0, mode: params.mode }
+    }
+    return NextResponse.json(response)
+  } catch (error) {
+    // Si erreur Zod (validation échouée), retourner 400 avec détails
+    if (error instanceof z.ZodError) {
+      return handleZodError(error)
+    }
     
-    const sp = request.nextUrl.searchParams
-    const days = parseInt(sp.get('days') || '30', 10)
-    const mode = (sp.get('mode') || 'last').toLowerCase()
+    logger.error('[404/history] API error', error, { route: '/api/404/history' })
     
     // Ne pas planter l'UI: renvoyer 200 avec données vides et détails d'erreur
-    return NextResponse.json({
+    const fallbackResponse: ApiSuccessResponse = {
       success: true,
       data: { evolution: [], lastScan: null },
-      meta: { days, count: 0, mode },
-      error: error.message,
-      errorCode: error.code,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
-    })
+      meta: { days: 30, count: 0, mode: 'last' },
+    }
+    return NextResponse.json(fallbackResponse)
   }
 }
 

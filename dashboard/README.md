@@ -9,6 +9,22 @@ Dashboard web Next.js 14 pour visualiser les données analytics du réseau Mover
 - **Par Site** : Analyse détaillée par ville avec top pages/queries
 - **Responsive** : Interface adaptée mobile/tablet/desktop
 - **Real-time** : Données synchronisées depuis BigQuery
+- **Validation** : Zod pour sécurité et type-safety
+- **IA** : Assistant IA intégré pour insights et recommandations
+
+## 📚 Documentation
+
+**Pour démarrer rapidement:**
+- **`QUICK-START.md`** ⚡ - Guide rapide pour Cursor et développeurs
+
+**Documentation complète:**
+- **`ARCHITECTURE.md`** 🏗️ - Structure complète du projet
+- **`API-ROUTES.md`** 🔌 - Toutes les routes API documentées
+- **`COMPONENTS.md`** 🧩 - Documentation des composants
+
+**Évolution future:**
+- **`MOBILE-FIRST-STRATEGY.md`** 📱 - Plan migration mobile
+- **`MIGRATION-ZOD-COMPLETE.md`** ✅ - Validation Zod implémentée
 
 ## 🚀 Développement Local
 
