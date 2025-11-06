@@ -245,6 +245,24 @@ function startScheduler() {
   })
   log('info', '⏰ SERP Health Check scheduled: daily at 14:00')
 
+  // TEST: Snapshot SERP dans 15 minutes (pour test immédiat)
+  const now = new Date()
+  const testTime = new Date(now.getTime() + 15 * 60 * 1000) // +15 minutes
+  const testMinutes = testTime.getMinutes()
+  const testHours = testTime.getHours()
+  
+  cron.schedule(`${testMinutes} ${testHours} * * *`, () => {
+    log('info', '🧪 TEST: Lancement snapshot SERP (test dans 15 minutes)')
+    executeSerpSnapshotJob().then(() => {
+      log('info', '✅ TEST: Snapshot SERP terminé avec succès')
+    }).catch((error) => {
+      log('error', '❌ TEST: Snapshot SERP échoué', { error: error.message })
+    })
+  }, {
+    timezone: 'Europe/Paris',
+  })
+  log('info', `🧪 TEST: Snapshot SERP programmé dans 15 minutes (${testHours}:${testMinutes.toString().padStart(2, '0')})`)
+
   log('info', '✅ Scheduler started successfully')
   log('info', '💡 Press Ctrl+C to stop')
 }
