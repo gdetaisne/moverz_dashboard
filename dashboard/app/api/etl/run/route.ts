@@ -161,8 +161,7 @@ export async function POST(request: NextRequest) {
 
     const errorResponse: ApiErrorResponse = {
       success: false,
-      message: userMessage,
-      error: error.message,
+      error: userMessage + (error.message ? `: ${error.message}` : ''),
       details: process.env.NODE_ENV === 'development' ? errorDetails : undefined,
     }
 
