@@ -227,3 +227,4 @@ const errorDetails = {
 
 **Solution implémentée. Route améliorée avec meilleure gestion d'erreurs et diagnostic.**
 
+

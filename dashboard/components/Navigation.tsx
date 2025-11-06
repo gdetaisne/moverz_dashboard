@@ -3,15 +3,29 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useState } from 'react'
-import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, Sparkles, Globe, Search, CheckSquare, Menu, X } from 'lucide-react'
+import { TrendingUp, AlertTriangle, Settings, BarChart3, Activity, Sparkles, Globe, Search, CheckSquare, Menu, X, ChevronDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import Tooltip from './Tooltip'
+
+type NavLink = {
+  href: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  title?: string
+  submenu?: Array<{ href: string; label: string; title?: string }>
+  help?: {
+    finalite?: string
+    tableaux?: string[]
+    sources?: string[]
+  }
+}
 
 export function Navigation() {
   const pathname = usePathname()
   const [isMobileOpen, setIsMobileOpen] = useState(false)
+  const [serpDropdownOpen, setSerpDropdownOpen] = useState(false)
   
-  const links = [
+  const links: NavLink[] = [
     // Vue d'ensemble
     { 
       href: '/', label: 'Vue d\'ensemble', icon: TrendingUp, title: 'KPIs globaux et tendances récentes',
@@ -39,8 +53,16 @@ export function Navigation() {
         sources: ['GSC agrégé par domaine']
       }
     },
+    // SERP avec sous-menu
     { 
-      href: '/serp', label: 'SERP', icon: Search, title: 'Top 20 via GSC + aperçu SERP',
+      href: '/serp', 
+      label: 'SERP', 
+      icon: Search, 
+      title: 'Top 20 via GSC + aperçu SERP',
+      submenu: [
+        { href: '/serp', label: 'SERP-Row Data', title: 'Données brutes avec aperçu SERP' },
+        { href: '/serp/analyse', label: 'SERP-Analyse', title: 'Analyse approfondie des données SERP' }
+      ],
       help: {
         finalite: 'Visualiser les requêtes/pages leaders et un aperçu SERP.',
         tableaux: ['Top 20 résultats (requêtes/pages)', 'Prévisualisation SERP'],
@@ -122,6 +144,79 @@ export function Navigation() {
               // Séparateurs entre sections (Vue d'ensemble | Détails | Technique | Config)
               const needsSeparator = idx === 2 || idx === 5 || idx === 7
               
+              // Si le lien a un sous-menu (SERP)
+              if (link.submenu) {
+                const isSerpActive = pathname.startsWith('/serp')
+                return (
+                  <div key={link.href} className="flex items-center gap-1 relative">
+                    {needsSeparator && (
+                      <div className="h-6 w-px bg-gray-300 mx-1" />
+                    )}
+                    <div 
+                      className="relative"
+                      onMouseEnter={() => setSerpDropdownOpen(true)}
+                      onMouseLeave={() => setSerpDropdownOpen(false)}
+                    >
+                      <Tooltip
+                        content={(
+                          <div>
+                            <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Finalité</div>
+                            <div className="mb-2 text-slate-800">{link.help?.finalite || link.title}</div>
+                            <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Liste des tableaux</div>
+                            <ul className="list-disc pl-5 mb-2 text-slate-800">
+                              {(link.help?.tableaux || []).map((t: string) => (
+                                <li key={t}>{t}</li>
+                              ))}
+                            </ul>
+                            <div className="text-xs uppercase tracking-wide text-slate-500 mb-1">Sources d&apos;informations</div>
+                            <ul className="list-disc pl-5 text-slate-800">
+                              {(link.help?.sources || []).map((s: string) => (
+                                <li key={s}>{s}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      >
+                        <div
+                          className={cn(
+                            'flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors whitespace-nowrap cursor-pointer',
+                            isSerpActive
+                              ? 'bg-primary-100 text-primary-700'
+                              : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'
+                          )}
+                        >
+                          <Icon className="h-4 w-4" />
+                          {link.label}
+                          <ChevronDown className="h-3 w-3" />
+                        </div>
+                      </Tooltip>
+                      {serpDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-md shadow-lg z-50 min-w-[200px]">
+                          {link.submenu.map((subItem) => {
+                            const isSubActive = pathname === subItem.href || (subItem.href === '/serp' && pathname === '/serp')
+                            return (
+                              <Link
+                                key={subItem.href}
+                                href={subItem.href}
+                                className={cn(
+                                  'block px-4 py-2 text-sm transition-colors',
+                                  isSubActive
+                                    ? 'bg-primary-50 text-primary-700 font-medium'
+                                    : 'text-gray-700 hover:bg-gray-50'
+                                )}
+                                onClick={() => setSerpDropdownOpen(false)}
+                              >
+                                {subItem.label}
+                              </Link>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )
+              }
+              
               return (
                 <div key={link.href} className="flex items-center gap-1">
                   {needsSeparator && (
@@ -175,6 +270,39 @@ export function Navigation() {
                 const isActive = link.href === '/' 
                   ? pathname === '/'
                   : pathname.startsWith(link.href)
+                
+                // Si le lien a un sous-menu (SERP)
+                if (link.submenu) {
+                  return (
+                    <div key={link.href}>
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-md text-sm font-medium text-gray-700">
+                        <Icon className="h-4 w-4" />
+                        {link.label}
+                      </div>
+                      <div className="pl-7 space-y-1">
+                        {link.submenu.map((subItem) => {
+                          const isSubActive = pathname === subItem.href || (subItem.href === '/serp' && pathname === '/serp')
+                          return (
+                            <Link
+                              key={subItem.href}
+                              href={subItem.href}
+                              onClick={() => setIsMobileOpen(false)}
+                              className={cn(
+                                'flex items-center gap-2 px-3 py-2 rounded-md text-sm',
+                                isSubActive
+                                  ? 'bg-primary-100 text-primary-700 font-medium'
+                                  : 'text-gray-600 hover:bg-gray-50'
+                              )}
+                            >
+                              {subItem.label}
+                            </Link>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                }
+                
                 return (
                   <Link
                     key={link.href}

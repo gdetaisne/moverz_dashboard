@@ -4,6 +4,9 @@
 
 import 'dotenv/config'
 import cron from 'node-cron'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+import path from 'path'
 import { runGSCETL } from './gsc/fetch.js'
 import { fetchGSCIssues } from './gsc/fetch-issues.js'
 import { runLeadsSync } from './leads/sync.js'
@@ -14,6 +17,9 @@ import { log } from './shared/error-handler.js'
 // Import Agents IA
 import { runTrafficAnalyst } from '../agents/traffic-analyst/agent.js'
 import { runGSCIssuesAnalyzer } from '../agents/gsc-issues-analyzer/agent.js'
+
+const execAsync = promisify(exec)
+const projectRoot = path.resolve(new URL('.', import.meta.url).pathname, '..')
 
 // ========================================
 // JOBS ETL
@@ -111,6 +117,80 @@ async function executeWebVitalsJob() {
   }
 }
 
+async function executeSerpSnapshotJob() {
+  log('info', '🔄 Starting SERP Metadata Snapshot job...')
+  
+  try {
+    const snapshotScript = path.join(projectRoot, 'etl', 'serp', 'snapshot-metadata.ts')
+    const command = `npx tsx ${snapshotScript}`
+    
+    const { stdout, stderr } = await execAsync(command, {
+      env: process.env,
+      timeout: 300000, // 5 minutes
+      maxBuffer: 10 * 1024 * 1024,
+    })
+    
+    const successMatch = stdout.match(/success[:\s]+(\d+)/i)
+    const failedMatch = stdout.match(/failed[:\s]+(\d+)/i)
+    const success = successMatch ? parseInt(successMatch[1], 10) : 0
+    const failed = failedMatch ? parseInt(failedMatch[1], 10) : 0
+    
+    log('info', '✅ SERP Metadata Snapshot completed', {
+      success,
+      failed,
+    })
+  } catch (error: any) {
+    log('error', '❌ SERP Metadata Snapshot failed', { error: error.message })
+  }
+}
+
+async function executeSerpCompleteJob() {
+  log('info', '🔄 Starting SERP Snapshots Completion job (j+2)...')
+  
+  try {
+    const completeScript = path.join(projectRoot, 'etl', 'serp', 'complete-snapshots.ts')
+    const command = `npx tsx ${completeScript}`
+    
+    const { stdout, stderr } = await execAsync(command, {
+      env: process.env,
+      timeout: 300000,
+      maxBuffer: 10 * 1024 * 1024,
+    })
+    
+    const completedMatch = stdout.match(/completed[:\s]+(\d+)/i)
+    const completed = completedMatch ? parseInt(completedMatch[1], 10) : 0
+    
+    log('info', '✅ SERP Snapshots Completion completed', {
+      completed,
+    })
+  } catch (error: any) {
+    log('error', '❌ SERP Snapshots Completion failed', { error: error.message })
+  }
+}
+
+async function executeSerpHealthCheckJob() {
+  log('info', '🔄 Starting SERP Snapshots Health Check...')
+  
+  try {
+    const healthScript = path.join(projectRoot, 'etl', 'serp', 'check-snapshots-health.ts')
+    const command = `npx tsx ${healthScript}`
+    
+    const { stdout, stderr } = await execAsync(command, {
+      env: process.env,
+      timeout: 60000, // 1 minute
+      maxBuffer: 1024 * 1024,
+    })
+    
+    log('info', '✅ SERP Snapshots Health Check completed')
+  } catch (error: any) {
+    // Health check échoue si problème détecté (exit code 1)
+    log('error', '⚠️ SERP Snapshots Health Check detected issues', { 
+      error: error.message,
+      stdout: error.stdout?.slice(-500),
+    })
+  }
+}
+
 // ========================================
 // SCHEDULER CONFIGURATION
 // ========================================
@@ -147,6 +227,24 @@ function startScheduler() {
   })
   log('info', '⏰ Web Vitals Aggregation scheduled: daily at 11:00')
 
+  // SERP Metadata Snapshot: Tous les jours à 12:00 (après GSC)
+  cron.schedule('0 12 * * *', executeSerpSnapshotJob, {
+    timezone: 'Europe/Paris',
+  })
+  log('info', '⏰ SERP Metadata Snapshot scheduled: daily at 12:00')
+
+  // SERP Snapshots Completion (j+2): Tous les jours à 13:00
+  cron.schedule('0 13 * * *', executeSerpCompleteJob, {
+    timezone: 'Europe/Paris',
+  })
+  log('info', '⏰ SERP Snapshots Completion scheduled: daily at 13:00')
+
+  // SERP Health Check: Tous les jours à 14:00
+  cron.schedule('0 14 * * *', executeSerpHealthCheckJob, {
+    timezone: 'Europe/Paris',
+  })
+  log('info', '⏰ SERP Health Check scheduled: daily at 14:00')
+
   log('info', '✅ Scheduler started successfully')
   log('info', '💡 Press Ctrl+C to stop')
 }
@@ -162,6 +260,9 @@ async function runAllJobsNow() {
   await executeGSCIssuesJob()
   await executeLeadsJob()
   await executeWebVitalsJob()
+  await executeSerpSnapshotJob()
+  await executeSerpCompleteJob()
+  await executeSerpHealthCheckJob()
   
   log('info', '✅ All jobs completed')
 }

@@ -25,6 +25,14 @@ const config: Config = {
       fontFamily: {
         sans: ['var(--font-inter)', 'system-ui', 'sans-serif'],
       },
+      screens: {
+        'xs': '475px',  // Très petits mobiles
+        'sm': '640px',  // Mobiles landscape / petits tablettes
+        'md': '768px',  // Tablettes
+        'lg': '1024px', // Desktop petit
+        'xl': '1280px', // Desktop
+        '2xl': '1536px', // Desktop large
+      },
     },
   },
   plugins: [],
