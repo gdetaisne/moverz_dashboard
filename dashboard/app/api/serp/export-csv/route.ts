@@ -201,7 +201,28 @@ export async function GET(request: NextRequest) {
       if (value === null || value === undefined) {
         return ''
       }
+      
+      // Gérer les dates et timestamps BigQuery
+      if (value instanceof Date) {
+        // Format ISO pour les timestamps
+        return value.toISOString()
+      }
+      
+      // BigQuery peut retourner des objets avec une propriété value (Timestamp)
+      if (typeof value === 'object' && value !== null && 'value' in value) {
+        const dateValue = value.value
+        if (dateValue instanceof Date) {
+          return dateValue.toISOString()
+        }
+        // Si c'est une string de date, la retourner telle quelle
+        if (typeof dateValue === 'string') {
+          return dateValue
+        }
+      }
+      
+      // Convertir en string
       const str = String(value)
+      
       // Si contient des guillemets, des virgules ou des retours à la ligne, entourer de guillemets
       if (str.includes('"') || str.includes(',') || str.includes('\n') || str.includes('\r')) {
         return `"${str.replace(/"/g, '""')}"`
