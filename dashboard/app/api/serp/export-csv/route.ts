@@ -20,6 +20,8 @@ export async function GET(request: NextRequest) {
     })
 
     // Récupérer toutes les données de la table
+    // IMPORTANT: La table est partitionnée par snapshot_date avec require_partition_filter=TRUE
+    // Il faut donc filtrer sur snapshot_date (on prend les 365 derniers jours pour avoir toutes les données récentes)
     const query = `
       SELECT 
         snapshot_date,
@@ -55,6 +57,7 @@ export async function GET(request: NextRequest) {
         created_at,
         updated_at
       FROM \`${BQ_PROJECT_ID}.${BQ_DATASET}.serp_metadata_snapshots\`
+      WHERE snapshot_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 365 DAY)
       ORDER BY snapshot_date DESC, COALESCE(impressions, 0) DESC
     `
 
