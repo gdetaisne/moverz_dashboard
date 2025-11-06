@@ -73,6 +73,34 @@ export async function GET(request: NextRequest) {
         errors: bqError.errors,
         code: bqError.code,
       })
+      
+      // Si la table n'existe pas, retourner un CSV vide avec en-têtes
+      if (bqError.message?.includes('not found') || 
+          bqError.message?.includes('does not exist') ||
+          bqError.code === 404) {
+        logger.info('[serp/export-csv] Table non trouvée, retour CSV vide')
+        const headers = [
+          'snapshot_date', 'url', 'metadata_date', 'page_type', 'description_template_version',
+          'description_text', 'title_text', 'title_length', 'description_length', 'length_score',
+          'gsc_date', 'impressions', 'clicks', 'ctr', 'position',
+          'intent', 'intent_source', 'intent_match_score', 'rich_results_score',
+          'has_faq', 'has_rating', 'has_breadcrumb', 'has_howto', 'has_article', 'has_video', 'has_local_business',
+          'fetch_success', 'fetch_status', 'redirected', 'status',
+          'created_at', 'updated_at',
+        ]
+        const csvContent = headers.join(',') + '\n'
+        const now = new Date()
+        const filename = `serp-metadata-snapshots-${now.toISOString().split('T')[0]}.csv`
+        
+        return new NextResponse(csvContent, {
+          status: 200,
+          headers: {
+            'Content-Type': 'text/csv; charset=utf-8',
+            'Content-Disposition': `attachment; filename="${filename}"`,
+          },
+        })
+      }
+      
       throw new Error(`Erreur BigQuery: ${bqError.message}`)
     }
 
