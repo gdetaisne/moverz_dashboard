@@ -408,6 +408,182 @@ async function processDomain(domain: string): Promise<GSCIssue[]> {
 }
 
 /**
+ * Vérifie si une URL a encore un problème dans GSC
+ * Retourne true si le problème existe encore, false s'il est résolu
+ */
+async function checkIfIssueStillExists(domain: string, url: string): Promise<boolean> {
+  const siteUrl = `sc-domain:${domain}`
+  const fullUrl = url.startsWith('http') ? url : `https://${domain}${url}`
+
+  try {
+    const response = await searchConsole.urlInspection.index.inspect({
+      requestBody: {
+        inspectionUrl: fullUrl,
+        siteUrl,
+      },
+    })
+
+    const inspectionResult = response.data.inspectionResult
+    if (!inspectionResult) return false
+
+    const indexStatus = inspectionResult.indexStatusResult
+    if (!indexStatus) return false
+
+    // Si le verdict est PASS, le problème est résolu
+    if (indexStatus.verdict === 'PASS') {
+      return false
+    }
+
+    // Sinon, le problème existe encore
+    return true
+  } catch (error: any) {
+    // En cas d'erreur, on considère que le problème existe encore (pour ne pas marquer comme résolu par erreur)
+    logger.warn({ domain, url, error: error.message }, 'Failed to check issue status, keeping as open')
+    return true
+  }
+}
+
+/**
+ * Vérifie les alertes "open" existantes et les marque comme "resolved" si elles n'existent plus dans GSC
+ */
+async function verifyExistingIssues(): Promise<number> {
+  try {
+    // Récupérer toutes les alertes "open" des 90 derniers jours
+    const query = `
+      SELECT 
+        id,
+        domain,
+        affected_urls,
+        detected_at
+      FROM \`${config.gcpProjectId}.${config.bqDataset}.gsc_issues\`
+      WHERE status = 'open'
+        AND issue_date >= DATE_SUB(CURRENT_DATE(), INTERVAL 90 DAY)
+      ORDER BY detected_at DESC
+      LIMIT 500
+    `
+
+    const [rows] = await bigquery.query({ query })
+    
+    if (rows.length === 0) {
+      logger.info('No open issues to verify')
+      return 0
+    }
+
+    logger.info({ count: rows.length }, 'Verifying existing open issues')
+
+    const resolvedIssues: string[] = []
+    const batchSize = 5 // Traiter par batch pour éviter rate limiting
+    let checked = 0
+
+    for (let i = 0; i < rows.length; i += batchSize) {
+      const batch = rows.slice(i, i + batchSize)
+      
+      const batchPromises = batch.map(async (row: any) => {
+        const urls = row.affected_urls ? JSON.parse(row.affected_urls) : []
+        if (urls.length === 0) return null
+
+        // Vérifier seulement la première URL (les autres sont généralement similaires)
+        const url = urls[0]
+        const stillExists = await checkIfIssueStillExists(row.domain, url)
+        
+        checked++
+        if (!stillExists) {
+          logger.info({ id: row.id, domain: row.domain, url }, 'Issue resolved in GSC')
+          return row.id
+        }
+        
+        return null
+      })
+
+      const batchResults = await Promise.all(batchPromises)
+      const batchResolved = batchResults.filter(Boolean) as string[]
+      resolvedIssues.push(...batchResolved)
+
+      // Pause entre les batches pour éviter rate limiting
+      if (i + batchSize < rows.length) {
+        await new Promise(resolve => setTimeout(resolve, 2000)) // 2s pause
+      }
+
+      logger.info({ checked, resolved: resolvedIssues.length, total: rows.length }, 'Progress verification')
+    }
+
+    // Marquer comme résolues dans BigQuery
+    if (resolvedIssues.length > 0) {
+      const resolvedAt = new Date().toISOString()
+      
+      // Utiliser MERGE pour mettre à jour le statut (plus sûr pour tables partitionnées)
+      // Traiter par batch de 50 pour éviter les limites de requête
+      const batchSize = 50
+      
+      for (let i = 0; i < resolvedIssues.length; i += batchSize) {
+        const batch = resolvedIssues.slice(i, i + batchSize)
+        
+        try {
+          // Construire la liste d'IDs pour le MERGE avec échappement SQL
+          const idsEscaped = batch.map(id => id.replace(/'/g, "''").replace(/\\/g, '\\\\'))
+          
+          const mergeQuery = `
+            MERGE \`${config.gcpProjectId}.${config.bqDataset}.gsc_issues\` AS target
+            USING (
+              SELECT id FROM UNNEST([${idsEscaped.map(id => `'${id}'`).join(',')}]) AS id
+            ) AS source
+            ON target.id = source.id
+              AND target.status = 'open'
+            WHEN MATCHED THEN
+              UPDATE SET
+                status = 'resolved',
+                resolved_at = TIMESTAMP(@resolvedAt)
+          `
+
+          await bigquery.query({
+            query: mergeQuery,
+            params: {
+              resolvedAt,
+            },
+          })
+          
+          logger.info({ batchSize: batch.length, totalResolved: i + batch.length }, 'Batch of issues marked as resolved')
+        } catch (error: any) {
+          logger.error({ batchSize: batch.length, error: error.message }, 'Failed to mark batch as resolved')
+          
+          // Fallback: essayer une par une si le batch échoue
+          logger.info('Falling back to individual updates')
+          for (const issueId of batch) {
+            try {
+              const updateQuery = `
+                UPDATE \`${config.gcpProjectId}.${config.bqDataset}.gsc_issues\`
+                SET 
+                  status = 'resolved',
+                  resolved_at = TIMESTAMP(@resolvedAt)
+                WHERE id = @issueId
+                  AND status = 'open'
+              `
+
+              await bigquery.query({
+                query: updateQuery,
+                params: {
+                  issueId,
+                  resolvedAt,
+                },
+              })
+            } catch (err: any) {
+              logger.error({ issueId, error: err.message }, 'Failed to mark issue as resolved individually')
+            }
+          }
+        }
+      }
+
+      logger.info({ count: resolvedIssues.length }, 'All issues marked as resolved')
+    }
+
+    return resolvedIssues.length
+  } catch (error: any) {
+    logger.error({ error: error.message }, 'Failed to verify existing issues')
+    return 0
+  }
+}
+
+/**
  * Main function
  */
 async function main() {
@@ -416,6 +592,11 @@ async function main() {
 
     logger.info({ sitesCount: sites.length }, 'Starting GSC issues fetch')
 
+    // 1. Vérifier les alertes existantes et marquer comme résolues si nécessaire
+    const resolvedCount = await verifyExistingIssues()
+    logger.info({ resolvedCount }, 'Existing issues verification completed')
+
+    // 2. Récupérer les nouvelles alertes
     const allIssues: GSCIssue[] = []
 
     for (const domain of sites) {
@@ -433,6 +614,7 @@ async function main() {
 
     logger.info({ 
       totalIssues: allIssues.length,
+      resolvedIssues: resolvedCount,
       sitesProcessed: sites.length 
     }, 'ETL completed successfully')
 
