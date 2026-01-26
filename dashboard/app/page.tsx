@@ -38,6 +38,7 @@ export default function HomePage() {
   const [chatOpen, setChatOpen] = useState(false)
   const [showFullImpr, setShowFullImpr] = useState(false)
   const [showFullClicks, setShowFullClicks] = useState(false)
+  const [showFullCtr, setShowFullCtr] = useState(false)
   const [lastUpdateDate, setLastUpdateDate] = useState<Date | null>(null)
   const [showExplanation, setShowExplanation] = useState(false)
   const [gscIssuesStats, setGscIssuesStats] = useState<{ total: number; warnings: number; errors: number } | null>(null)
@@ -409,6 +410,19 @@ export default function HomePage() {
           </div>
           <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" />
         </div>
+
+        <div className="bg-white rounded-lg border border-slate-200 p-6 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-800">🎯 Évolution du CTR par site</h2>
+            <button
+              onClick={() => setShowFullCtr(true)}
+              className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-50 text-slate-700"
+            >
+              Plein écran
+            </button>
+          </div>
+          <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="ctr" />
+        </div>
       </div>
 
       {/* Modal plein écran - Impressions */}
@@ -448,6 +462,27 @@ export default function HomePage() {
             </div>
             <div className="flex-1 min-h-0">
               <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="clicks" height="100%" />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal plein écran - CTR */}
+      {showFullCtr && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60">
+          <div className="bg-white w-[95vw] h-[95vh] rounded-lg shadow-xl border border-slate-200 p-4 flex flex-col">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xl font-bold text-slate-900">🎯 Évolution du CTR par site</h3>
+              <button
+                onClick={() => setShowFullCtr(false)}
+                className="px-3 py-1.5 text-sm rounded-md border border-slate-300 hover:bg-slate-50 text-slate-700"
+                aria-label="Fermer"
+              >
+                Fermer
+              </button>
+            </div>
+            <div className="flex-1 min-h-0">
+              <MultiSiteTimeSeriesChart data={timeseriesData as any} metric="ctr" height="100%" />
             </div>
           </div>
         </div>

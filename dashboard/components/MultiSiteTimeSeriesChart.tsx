@@ -14,7 +14,7 @@ interface MultiSiteTimeSeriesChartProps {
     ctr?: number
     position?: number
   }>
-  metric: 'clicks' | 'impressions'
+  metric: 'clicks' | 'impressions' | 'ctr'
   height?: number | string
 }
 
@@ -25,6 +25,10 @@ const COLORS = [
 
 export function MultiSiteTimeSeriesChart({ data, metric, height }: MultiSiteTimeSeriesChartProps) {
   const [hoveredSite, setHoveredSite] = useState<string | null>(null)
+  const formatValue = (value: number) => {
+    if (metric === 'ctr') return `${(value * 100).toFixed(2)}%`
+    return value.toString()
+  }
   const formatDate = (dateStr: string) => {
     try {
       return format(parseISO(dateStr), 'd MMM', { locale: fr })
@@ -40,7 +44,9 @@ export function MultiSiteTimeSeriesChart({ data, metric, height }: MultiSiteTime
   const byDate: Record<string, any> = {}
   for (const d of data) {
     if (!byDate[d.date]) byDate[d.date] = { date: d.date }
-    byDate[d.date][d.site] = metric === 'clicks' ? d.clicks : d.impressions
+    if (metric === 'clicks') byDate[d.date][d.site] = d.clicks
+    if (metric === 'impressions') byDate[d.date][d.site] = d.impressions
+    if (metric === 'ctr') byDate[d.date][d.site] = d.ctr ?? 0
   }
 
   // Build sorted array by date ASC for charting
@@ -59,9 +65,11 @@ export function MultiSiteTimeSeriesChart({ data, metric, height }: MultiSiteTime
         <YAxis 
           tick={{ fill: '#64748b', fontSize: 12 }}
           stroke="#cbd5e1"
+          tickFormatter={metric === 'ctr' ? (value) => formatValue(Number(value)) : undefined}
         />
         <Tooltip 
           labelFormatter={formatDate}
+          formatter={metric === 'ctr' ? (value) => formatValue(Number(value)) : undefined}
           contentStyle={{ 
             background: 'white', 
             border: '1px solid #e2e8f0',
