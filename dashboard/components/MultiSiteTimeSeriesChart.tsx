@@ -42,11 +42,32 @@ export function MultiSiteTimeSeriesChart({ data, metric, height }: MultiSiteTime
 
   // Index by date, pivot values by site
   const byDate: Record<string, any> = {}
-  for (const d of data) {
-    if (!byDate[d.date]) byDate[d.date] = { date: d.date }
-    if (metric === 'clicks') byDate[d.date][d.site] = d.clicks
-    if (metric === 'impressions') byDate[d.date][d.site] = d.impressions
-    if (metric === 'ctr') byDate[d.date][d.site] = d.ctr ?? 0
+  if (metric === 'ctr') {
+    const bySite: Record<string, Array<{ date: string; ctr: number }>> = {}
+    for (const d of data) {
+      if (!bySite[d.site]) bySite[d.site] = []
+      bySite[d.site].push({ date: d.date, ctr: d.ctr ?? 0 })
+    }
+    for (const site of Object.keys(bySite)) {
+      const rows = bySite[site].sort((a, b) => a.date.localeCompare(b.date))
+      const values = rows.map((r) => r.ctr)
+      const rolling = values.map((_, idx) => {
+        const start = Math.max(0, idx - 6)
+        const slice = values.slice(start, idx + 1)
+        const sum = slice.reduce((acc, v) => acc + v, 0)
+        return slice.length > 0 ? sum / slice.length : 0
+      })
+      rows.forEach((row, idx) => {
+        if (!byDate[row.date]) byDate[row.date] = { date: row.date }
+        byDate[row.date][site] = rolling[idx]
+      })
+    }
+  } else {
+    for (const d of data) {
+      if (!byDate[d.date]) byDate[d.date] = { date: d.date }
+      if (metric === 'clicks') byDate[d.date][d.site] = d.clicks
+      if (metric === 'impressions') byDate[d.date][d.site] = d.impressions
+    }
   }
 
   // Build sorted array by date ASC for charting
