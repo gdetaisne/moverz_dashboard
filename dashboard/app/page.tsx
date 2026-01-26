@@ -62,7 +62,7 @@ export default function HomePage() {
 
       const [globalJson, timeseriesJson, insightJson, gscIssuesJson, last404Json] = await Promise.all([
         fetchJsonWithTimeout(`/api/metrics/global?days=${period}`),
-        fetchJsonWithTimeout(`/api/metrics/timeseries?days=30`),
+        fetchJsonWithTimeout(`/api/metrics/timeseries?days=${period}`),
         fetchJsonWithTimeout(`/api/insights?site=${encodeURIComponent('*global*')}&agent=report`),
         fetchJsonWithTimeout(`/api/gsc/issues?days=7&status=open`),
         fetchJsonWithTimeout(`/api/404/history?mode=last&count=1`),
