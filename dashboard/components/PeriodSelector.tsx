@@ -12,6 +12,7 @@ export function PeriodSelector({ value, onChange }: PeriodSelectorProps) {
     { label: '7 jours', days: 7 },
     { label: '28 jours', days: 28 },
     { label: '90 jours', days: 90 },
+    { label: '365 jours', days: 365 },
   ]
   
   return (

@@ -65,6 +65,7 @@ export function MultiSiteTimeSeriesChart({ data, metric, height }: MultiSiteTime
         <YAxis 
           tick={{ fill: '#64748b', fontSize: 12 }}
           stroke="#cbd5e1"
+          domain={metric === 'ctr' ? [0, 0.02] : undefined}
           tickFormatter={metric === 'ctr' ? (value) => formatValue(Number(value)) : undefined}
         />
         <Tooltip 
